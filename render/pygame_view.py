@@ -183,14 +183,29 @@ class App:
         #   R3 = opposing BLUE bot
         # All three bots follow the same ScriptedBot logic but with their own
         # alliance. Toggle all bots on/off with B.
-        self.bots: list[ScriptedBot] = [
-            ScriptedBot(robot_id=1, world=self.world,
-                         collides_at=self._make_collides_for(1)),
-            ScriptedBot(robot_id=2, world=self.world,
-                         collides_at=self._make_collides_for(2)),
-            ScriptedBot(robot_id=3, world=self.world,
-                         collides_at=self._make_collides_for(3)),
-        ]
+        # AI-vs-AI duel mode flag must be set BEFORE we instantiate bots
+        # because _rebuild_controller checks it to decide POST_LOADS phase.
+        self.duel_mode: bool = False
+        # Per-robot controller assignment. Each robot is driven by one of:
+        #   'player'   — keyboard / joystick (only meaningful for R0)
+        #   'scripted' — rule-based ScriptedBot
+        #   'nn'       — neural-network policy (load from disk)
+        #   'none'     — sit still
+        # Reassignable at runtime via the Controllers HUD panel.
+        self.controllers: dict[int, str] = {
+            0: 'player',
+            1: 'scripted',
+            2: 'scripted',
+            3: 'scripted',
+        }
+        # Backing bot instances for non-player controllers.
+        self.bot_instances: dict[int, object] = {}
+        for rid, kind in self.controllers.items():
+            self._rebuild_controller(rid, kind)
+        # Keep self.bots in sync for any older code paths that still expect it.
+        self._sync_bots_list()
+        # Click-zones for the Controllers panel — refreshed each frame in _render
+        self._controller_hits: list = []
 
         # Trigger-as-axis edge detection (so analog R2 only fires pickup once
         # when crossing the threshold, not every frame it's held).
@@ -200,11 +215,6 @@ class App:
         # push zone at its front bumper (lets you sweep multiple pins/cups in
         # a single drive-by). Toggled with controller button 2 / X key.
         self.wings_extended: bool = False
-
-        # AI-vs-AI toggle-duel mode. When True: world is replaced by a minimal
-        # one-toggle world, the field renders zoomed in on the right quadrant,
-        # both visible robots are bots, and player input is ignored.
-        self.duel_mode: bool = False
 
     # -- Layout recompute on resize / fullscreen toggle --
 
@@ -287,10 +297,12 @@ class App:
             sim_accumulator += real_dt
             self._poll_analog_trigger()
             while sim_accumulator >= SIM_DT:
-                # Player drives R0 — except in duel mode, where R0 is also AI.
-                if not self.duel_mode:
+                # Dispatch: each robot is driven by whichever controller is
+                # assigned in self.controllers. Player input only drives R0
+                # when R0's controller is 'player'.
+                if self.controllers.get(0) == 'player':
                     self._update_robot_kinematics(SIM_DT)
-                for bot in self.bots:
+                for bot in self.bot_instances.values():
                     bot.update(SIM_DT)
                 self._resolve_robot_overlaps()
                 self._push_loose_objects()
@@ -1227,41 +1239,41 @@ class App:
                         f"(still touching — back off to lock it in)")
 
     def _rebind_bots_to_world(self) -> None:
-        """When the world is replaced (R / D keys), rewire each bot's world
-        reference and reset its state machine to IDLE."""
-        for b in self.bots:
-            b.world = self.world
-            b.collides_at = self._make_collides_for(b.robot_id)
-            b.state = "IDLE"
-            b.phase = "MATCH_LOADS"
-            b.match_loads_delivered = 0
-            b.target = None
-            b.target_goal_id = None
-            b.target_toggle_id = None
-            b._v_left = 0.0
-            b._v_right = 0.0
+        """When the world is replaced (R / D keys), rebuild every bot from
+        scratch using its current controller assignment. This handles new
+        robot ids cleanly (in case the new world has a different roster).
+        Controller assignments are preserved where they make sense."""
+        # Filter controllers to only the robots that exist in the new world
+        live_ids = {r.id for r in self.world.robots}
+        # Keep existing controllers for live robots; default missing to scripted
+        self.controllers = {rid: self.controllers.get(rid, 'scripted')
+                              for rid in live_ids}
+        # Player default for R0 outside duel mode
+        if not self.duel_mode and 0 in live_ids:
+            self.controllers[0] = 'player'
+        # Rebuild bots
+        self.bot_instances = {}
+        for rid, kind in self.controllers.items():
+            self._rebuild_controller(rid, kind)
+        self._sync_bots_list()
 
     def _enter_duel_mode(self) -> None:
-        """Switch to the AI-vs-AI toggle-duel scenario:
-          - Replace the world with one toggle + 2 robots (red R0, blue R2).
-          - Replace bots with one driving each robot in POST_LOADS phase.
-          - Zoom the field layout to the Q1 quadrant viewport.
-          - Player input on R0 is suspended (the bot drives R0)."""
+        """Switch to the 1v1 toggle-duel: real field, only Q1 toggle, only
+        R0 and R2 on it. Defaults to NN-vs-scripted but you can change either
+        controller from the Controllers panel mid-match."""
         self.duel_mode = True
         self.world = make_toggle_duel_world()
         self.auto_red = self.auto_blue = None
         self._recompute_layout()
-        # Re-create the bot roster — one bot per robot in this world.
-        self.bots = [
-            ScriptedBot(robot_id=r.id, world=self.world,
-                         collides_at=self._make_collides_for(r.id))
-            for r in self.world.robots
-        ]
-        for b in self.bots:
-            b.phase = "POST_LOADS"     # skip match-loading; straight to toggle fight
-            b.enabled = True
-        self.status = ("TOGGLE DUEL — red vs blue race for the Q1 toggle. "
-                        "Press R to reset, F again to leave duel mode.")
+        # Default duel controllers: NN red, scripted blue. The user can
+        # cycle either side from the Controllers panel.
+        self.controllers = {0: 'nn', 2: 'scripted'}
+        self.bot_instances = {}
+        for rid, kind in self.controllers.items():
+            self._rebuild_controller(rid, kind)
+        self._sync_bots_list()
+        self.status = ("TOGGLE DUEL — pick controllers in the side panel. "
+                        "F again to leave duel mode.")
 
     def _exit_duel_mode(self) -> None:
         """Return to normal play: standard world, player drives R0, three
@@ -1270,15 +1282,67 @@ class App:
         self.world = make_empty_world()
         self.auto_red = self.auto_blue = None
         self._recompute_layout()
-        self.bots = [
-            ScriptedBot(robot_id=1, world=self.world,
-                         collides_at=self._make_collides_for(1)),
-            ScriptedBot(robot_id=2, world=self.world,
-                         collides_at=self._make_collides_for(2)),
-            ScriptedBot(robot_id=3, world=self.world,
-                         collides_at=self._make_collides_for(3)),
-        ]
+        self.controllers = {0: 'player', 1: 'scripted',
+                              2: 'scripted', 3: 'scripted'}
+        self.bot_instances = {}
+        for rid, kind in self.controllers.items():
+            self._rebuild_controller(rid, kind)
+        self._sync_bots_list()
         self.status = "Duel mode off — back to normal play."
+
+    # -- Controller management -------------------------------------------------
+
+    def _rebuild_controller(self, robot_id: int, kind: str) -> None:
+        """Create / replace / clear the bot instance for `robot_id` based on
+        the requested controller `kind` ('player'/'scripted'/'nn'/'none')."""
+        # Drop any existing bot for this robot
+        self.bot_instances.pop(robot_id, None)
+        if kind == 'scripted':
+            b = ScriptedBot(robot_id=robot_id, world=self.world,
+                              collides_at=self._make_collides_for(robot_id))
+            if self.duel_mode:
+                b.phase = "POST_LOADS"
+            b.enabled = True
+            self.bot_instances[robot_id] = b
+        elif kind == 'nn':
+            try:
+                from pathlib import Path
+                from ai.nn_policy import MLPPolicy
+                from ai.nn_bot import NNBot
+                model_path = (Path(__file__).resolve().parent.parent
+                              / "ai" / "toggle_duel_policy.pt")
+                if not model_path.exists():
+                    self.status = (f"NN model not found at {model_path.name}; "
+                                    f"using scripted instead.")
+                    self.controllers[robot_id] = 'scripted'
+                    self._rebuild_controller(robot_id, 'scripted')
+                    return
+                net = MLPPolicy.load(model_path)
+                b = NNBot(robot_id=robot_id, world=self.world, policy=net,
+                            collides_at=self._make_collides_for(robot_id))
+                self.bot_instances[robot_id] = b
+            except Exception as e:
+                self.status = f"Failed to create NN bot: {e}"
+                self.controllers[robot_id] = 'scripted'
+                self._rebuild_controller(robot_id, 'scripted')
+                return
+        # 'player' and 'none' don't need a bot instance.
+        self.controllers[robot_id] = kind
+
+    def _set_controller(self, robot_id: int, kind: str) -> None:
+        """User-initiated controller change (from panel click or key)."""
+        if kind not in ('player', 'scripted', 'nn', 'none'):
+            return
+        self._rebuild_controller(robot_id, kind)
+        self._sync_bots_list()
+        self.status = (f"R{robot_id} controller -> "
+                        f"{kind.upper().replace('NN','NEURAL-NET')}")
+
+    def _sync_bots_list(self) -> None:
+        """Keep self.bots in sync with self.bot_instances for any legacy
+        code paths that still iterate self.bots (and for the bot-enable
+        toggle on B)."""
+        self.bots = list(self.bot_instances.values())
 
     def _swap_red_bot_to_nn(self) -> None:
         """In duel mode, replace the red (R0) bot with a neural-network policy
@@ -1287,41 +1351,10 @@ class App:
         if not self.duel_mode:
             self.status = "NN bot is only available in duel mode (press F)."
             return
-        from pathlib import Path
-        model_path = (Path(__file__).resolve().parent.parent
-                      / "ai" / "toggle_duel_policy.pt")
-        if not model_path.exists():
-            self.status = (f"No trained policy found at {model_path.name}. "
-                            f"Run: python scripts/train_toggle_duel.py")
-            return
-        # Find R0's bot in self.bots
-        for i, b in enumerate(self.bots):
-            if b.robot_id == 0:
-                if isinstance(b, ScriptedBot):
-                    # Swap to NN
-                    from ai.nn_policy import MLPPolicy
-                    from ai.nn_bot import NNBot
-                    try:
-                        net = MLPPolicy.load(model_path)
-                    except Exception as e:
-                        self.status = f"Failed to load policy: {e}"
-                        return
-                    self.bots[i] = NNBot(
-                        robot_id=0, world=self.world, policy=net,
-                        collides_at=self._make_collides_for(0),
-                    )
-                    self.status = "Red bot = NEURAL NET (greedy). Press N to revert."
-                else:
-                    # Swap back to ScriptedBot
-                    self.bots[i] = ScriptedBot(
-                        robot_id=0, world=self.world,
-                        collides_at=self._make_collides_for(0),
-                    )
-                    self.bots[i].phase = "POST_LOADS"
-                    self.bots[i].enabled = True
-                    self.status = "Red bot reverted to ScriptedBot."
-                return
-        self.status = "No red (R0) bot in current roster."
+        # Toggle R0 between NN and Scripted via the controller system.
+        cur = self.controllers.get(0, 'scripted')
+        new_kind = 'scripted' if cur == 'nn' else 'nn'
+        self._set_controller(0, new_kind)
 
     def _toggle_fullscreen(self) -> None:
         self.is_fullscreen = not self.is_fullscreen
@@ -1356,6 +1389,12 @@ class App:
     def _handle_click(self, event) -> None:
         mx, my = event.pos
         if event.button == 1:
+            # Controllers panel — any button-click hit takes priority over
+            # the field-side click handlers below.
+            for rid, kind, rect in self._controller_hits:
+                if rect.collidepoint(mx, my):
+                    self._set_controller(rid, kind)
+                    return
             # Stack item click → flip orientation
             for goal_id, kind, obj_id, rect in self._stack_hits:
                 if rect.collidepoint(mx, my):
@@ -1507,9 +1546,11 @@ class App:
         side_y = self.layout.topbar_h + margin
         side_h_total = self.layout.win_h - side_y - self.layout.statusbar_h - margin
 
-        bd_h = 290
-        tog_h = 220
-        help_h = max(120, side_h_total - bd_h - tog_h - 24)
+        bd_h = 260
+        tog_h = 180
+        # Per-robot row ~30 px tall plus header padding
+        ctrl_h = 40 + 30 * max(1, len(self.world.robots))
+        help_h = max(100, side_h_total - bd_h - tog_h - ctrl_h - 36)
 
         bd_rect = pygame.Rect(self.layout.side_x, side_y, self.layout.side_w, bd_h)
         H.draw_score_breakdown(self.screen, bd_rect, s)
@@ -1518,7 +1559,12 @@ class App:
                                self.layout.side_w, tog_h)
         H.draw_toggle_panel(self.screen, tog_rect, self.world)
 
-        help_rect = pygame.Rect(self.layout.side_x, tog_rect.bottom + 12,
+        ctrl_rect = pygame.Rect(self.layout.side_x, tog_rect.bottom + 12,
+                                  self.layout.side_w, ctrl_h)
+        self._controller_hits = H.draw_controllers_panel(
+            self.screen, ctrl_rect, self.world, self.controllers)
+
+        help_rect = pygame.Rect(self.layout.side_x, ctrl_rect.bottom + 12,
                                 self.layout.side_w, help_h)
         H.draw_help_panel(self.screen, help_rect,
                           OBJECT_TYPES[self.current_object_idx][0])

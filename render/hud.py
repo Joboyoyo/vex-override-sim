@@ -227,6 +227,58 @@ def draw_toggle_panel(surface, rect: pygame.Rect, world: World) -> None:
         y += 28
 
 
+# -- Controllers panel --------------------------------------------------------
+
+
+CONTROLLER_KINDS = ("player", "scripted", "nn", "none")
+CONTROLLER_LABELS = {
+    "player":   "PLAYER",
+    "scripted": "SCRIPT",
+    "nn":       "NN",
+    "none":     "OFF",
+}
+
+
+def draw_controllers_panel(surface, rect, world, controllers: dict) -> list:
+    """Draw a 'who's driving who' panel. For each robot, show 4 small
+    pill-buttons (PLAYER / SCRIPT / NN / OFF) — the current one is
+    highlighted. Returns a list of (robot_id, kind, rect) tuples so
+    the click handler in App can dispatch mouse clicks to controller changes.
+    """
+    inner = _draw_panel(surface, rect, title="Controllers")
+    hit_zones = []
+    y = inner.top
+    line_h = 30
+
+    for robot in sorted(world.robots, key=lambda r: r.id):
+        # Robot label (left side)
+        rcolor = C.RED if robot.alliance == Alliance.RED else C.BLUE
+        _draw_text(surface, f"R{robot.id}", inner.left, y,
+                    color=rcolor, size=12, bold=True)
+
+        # 4 pill buttons across the rest of the row
+        bx = inner.left + 26
+        button_w, button_h = 50, 20
+        gap = 4
+        current = controllers.get(robot.id, "none")
+        for kind in CONTROLLER_KINDS:
+            br = pygame.Rect(bx, y - 1, button_w, button_h)
+            selected = (kind == current)
+            fill = rcolor if selected else (235, 235, 235)
+            border = C.GOAL_BORDER if not selected else (0, 0, 0)
+            text_color = (255, 255, 255) if selected else C.TEXT_SECONDARY
+            pygame.draw.rect(surface, fill, br, border_radius=4)
+            pygame.draw.rect(surface, border, br, 1, border_radius=4)
+            label = CONTROLLER_LABELS[kind]
+            _draw_text(surface, label, br.x + 4, br.y + 3,
+                        color=text_color, size=11, bold=selected)
+            hit_zones.append((robot.id, kind, br))
+            bx += button_w + gap
+
+        y += line_h
+    return hit_zones
+
+
 # -- Help panel ---------------------------------------------------------------
 
 
