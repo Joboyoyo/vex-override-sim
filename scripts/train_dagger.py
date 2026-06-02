@@ -128,12 +128,12 @@ def collect_dagger_dataset(policy: MLPPolicy,
 
 
 def evaluate(policy: MLPPolicy, episodes: int = 5) -> dict:
-    """Quick win-rate check against the scripted opponent. Returns avg
-    reward and seconds spent holding the toggle as our color."""
+    """Win-rate check on the real-field env. Returns avg return and the
+    average per-step count of toggles we own (0 to 4). With 4 toggles in
+    play, "ours_avg" close to 4 means total domination, ~2 is split."""
     total_return = 0.0
-    held_ours = 0
-    held_opp = 0
-    held_yel = 0
+    total_ours_count = 0.0
+    total_steps = 0
     for ep in range(episodes):
         env = ToggleDuelEnv(episode_steps=300, seed=1000 + ep,
                               opponent_enabled=True)
@@ -143,16 +143,12 @@ def evaluate(policy: MLPPolicy, episodes: int = 5) -> dict:
             a = policy.act(obs, greedy=True)
             obs, r, done, info = env.step(a)
             total_return += r
-            if info["resting_state"] == "red":
-                held_ours += 1
-            elif info["resting_state"] == "blue":
-                held_opp += 1
-            else:
-                held_yel += 1
+            total_ours_count += info["ours_count"]
+            total_steps += 1
     return {
         "avg_return":  total_return / episodes,
-        "ours_sec":    held_ours * env.DT,
-        "opp_sec":     held_opp * env.DT,
+        "ours_avg":    total_ours_count / max(1, total_steps),
+        "n_toggles":   info["n_toggles"],
     }
 
 
@@ -176,7 +172,7 @@ def main() -> int:
     policy = train_bc(base_obs, base_act, epochs=args.bc_epochs, hidden=128)
     metrics = evaluate(policy)
     print(f"  after BC:  avg_return={metrics['avg_return']:.1f}  "
-          f"ours={metrics['ours_sec']:.1f}s  opp={metrics['opp_sec']:.1f}s")
+          f"ours_avg={metrics['ours_avg']:.2f}/{metrics['n_toggles']} toggles")
 
     obs_buf, act_buf = base_obs, base_act
 
@@ -195,7 +191,7 @@ def main() -> int:
                             hidden=128)
         metrics = evaluate(policy)
         print(f"  after DAGGER#{it+1}:  avg_return={metrics['avg_return']:.1f}  "
-              f"ours={metrics['ours_sec']:.1f}s  opp={metrics['opp_sec']:.1f}s")
+              f"ours_avg={metrics['ours_avg']:.2f}/{metrics['n_toggles']} toggles")
 
     # ---- step 3: save ----
     out = Path(args.save)

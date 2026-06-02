@@ -98,14 +98,21 @@ from core.worlds import make_empty_world, make_demo_world      # noqa: E402
 
 
 def make_toggle_duel_world() -> World:
-    """Duel scenario — the REAL field (full pin/cup/toggle/goal setup from
-    `make_empty_world`) with the match clock already running. All four
-    robots are bots in POST_LOADS phase, so as soon as you enter duel mode
-    the field gets contested for ALL FOUR toggles, not just one. This
-    matches what the trained neural-network bot sees during training, and
-    matches what real VEX play looks like."""
+    """Duel scenario — the REAL field (pins, cups, goals all intact) BUT
+    only the Q1 (right-wall) toggle exists. Both bots are forced to fight
+    for the same single objective, so the duel produces actual tactical
+    combat (pushing, blocking, contested back-ins) instead of degenerating
+    into "race to the closest toggle, never interact."
+
+    Also reduced to 1v1 (R0 red, R2 blue). Partner bots in a 4-toggle
+    world tended to spread out and cycle; with one toggle and two robots,
+    every encounter matters."""
     w = make_empty_world()
     w.phase = Phase.DRIVER
+    # Keep only Q1
+    w.toggles = [t for t in w.toggles if t.quadrant == 1]
+    # 1v1
+    w.robots = [r for r in w.robots if r.id in (0, 2)]
     return w
 
 

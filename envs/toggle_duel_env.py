@@ -56,19 +56,14 @@ DISCRETE_ACTIONS = np.array([
 
 
 def _make_duel_world() -> World:
-    """The REAL game's starting field (pulled from core.worlds), with the
-    match clock already running. Training thus happens on exactly the same
-    map the live game displays — no toy scenarios with stripped goals or a
-    single toggle.
-
-    For training simplicity we keep just R0 (red, the agent) and R2 (blue,
-    the scripted opponent) — partner bots would only confuse the reward
-    attribution. Pin/cup positions and all four toggles are intact."""
+    """Real field (pins, cups, goals) with the 1v1 1-toggle duel layout:
+    only Q1 (right wall) exists, only R0 and R2 are on the field. Matches
+    the live game's duel mode so the trained policy plays the same setup
+    it learned. Pure tactical combat — both bots fight for one toggle."""
     from core.worlds import make_empty_world
     w = make_empty_world()
     w.phase = Phase.DRIVER
-    # Drop the partner bots (R1, R3); env trains a single agent vs a single
-    # scripted opponent. Keep R0 (agent) and R2 (opponent).
+    w.toggles = [t for t in w.toggles if t.quadrant == 1]
     w.robots = [r for r in w.robots if r.id in (0, 2)]
     return w
 
@@ -159,6 +154,18 @@ def make_observation(world: World, agent_robot: Robot,
     else:
         rs = 0.0
     live_unset = 1.0 if t.state == ToggleState.UNSET else 0.0
+    # MULTI-TOGGLE awareness — let the policy see the state of every toggle
+    # in the game, not just the primary one. Indices: signed resting state
+    # for Q0, Q1, Q2, Q3 (zeros if the world has fewer than 4 toggles).
+    all_toggle_states = [0.0, 0.0, 0.0, 0.0]
+    for tt in world.toggles:
+        if not (0 <= tt.quadrant < 4):
+            continue
+        if tt.resting_state == my_color:
+            all_toggle_states[tt.quadrant] = 1.0
+        elif tt.resting_state == opp_color:
+            all_toggle_states[tt.quadrant] = -1.0
+
     return np.array([
         agent_robot.x / 6.0, agent_robot.y / 6.0,
         cos_t, sin_t,
@@ -170,6 +177,8 @@ def make_observation(world: World, agent_robot: Robot,
         opp.x / 6.0, opp.y / 6.0,
         math.cos(opp.theta), math.sin(opp.theta),
         rs, live_unset,
+        all_toggle_states[0], all_toggle_states[1],
+        all_toggle_states[2], all_toggle_states[3],
     ], dtype=np.float32)
 
 
@@ -210,7 +219,7 @@ class ToggleDuelEnv:
             we actually flip it (resting_state transitions to our color).
     """
 
-    OBS_DIM = 19
+    OBS_DIM = 23
     ACTION_DIM = 9
     DT = 0.05
     DEFAULT_EPISODE_STEPS = 600
