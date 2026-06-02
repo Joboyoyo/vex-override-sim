@@ -119,6 +119,7 @@ class ScriptedBot:
         # Stuck detection — if wheels say "we should be moving" but the chassis
         # hasn't moved for ~0.4 s, trigger an "unstuck" maneuver (back up + turn).
         self._prev_pos: tuple[float, float] = (0.0, 0.0)
+        self._prev_dist_to_target: Optional[float] = None
         self._stuck_dt: float = 0.0
         self._unstuck_dt: float = 0.0    # remaining seconds of unstuck routine
         self._unstuck_dir: float = 1.0   # +1 or -1 — which way to swing while reversing
@@ -174,51 +175,76 @@ class ScriptedBot:
         self._update_stuck_detection(dt)
 
     def _update_stuck_detection(self, dt: float) -> None:
-        """If wheels are spinning but the chassis hasn't actually moved for
-        ~0.4 s while in a driving state with a far-away target, trigger an
-        unstuck maneuver."""
+        """If the bot isn't making meaningful progress toward its target,
+        trigger an unstuck maneuver. Two fail modes are caught:
+
+        1. Wheels spinning but body not moving (hit a wall/goal cleanly)
+        2. Wheels spinning, body moving slowly, but PROGRESS toward the
+           target is negligible (sliding along an obstacle's edge or being
+           pinned by another robot).
+
+        Both fire at 0.25 s — faster than before, because long lock-ups
+        are visually obvious and the duel can't wait."""
         driving_states = {
             "DRIVING_TO_LOADER", "DRIVING_TO_GOAL",
             "DRIVING_TO_TOGGLE", "DRIVING_TO_MIDFIELD",
+            "BACK_INTO_TOGGLE",     # also catch stuck-during-reverse
         }
         r = self.robot
 
         if self.state not in driving_states or self.target is None:
             self._stuck_dt = 0.0
             self._prev_pos = (r.x, r.y)
+            self._prev_dist_to_target = None
             return
 
+        dist_to_target = math.hypot(self.target[0] - r.x,
+                                       self.target[1] - r.y)
         # Don't trigger near the target — slowdowns are legitimate there
-        dist_to_target = math.hypot(self.target[0] - r.x, self.target[1] - r.y)
-        if dist_to_target < 1.0:
+        if dist_to_target < 0.8:
             self._stuck_dt = 0.0
             self._prev_pos = (r.x, r.y)
+            self._prev_dist_to_target = dist_to_target
             return
 
-        expected = abs(self._v_left) + abs(self._v_right) > 1.0   # wheels say >0.5 ft/s
-        actual_move = math.hypot(r.x - self._prev_pos[0], r.y - self._prev_pos[1])
-        moved = actual_move > 0.002      # ~2 mm threshold per frame
+        expected = abs(self._v_left) + abs(self._v_right) > 1.0
+        actual_move = math.hypot(r.x - self._prev_pos[0],
+                                    r.y - self._prev_pos[1])
+        moved_at_all = actual_move > 0.002
 
-        if expected and not moved:
+        # Progress toward target — positive means closing the gap
+        if self._prev_dist_to_target is not None:
+            progress = self._prev_dist_to_target - dist_to_target
+        else:
+            progress = 0.0
+
+        # Stuck if wheels are spinning AND (not moving OR not making progress)
+        not_progressing = progress < 0.005     # ~3 cm/frame of closing
+        if expected and (not moved_at_all or not_progressing):
             self._stuck_dt += dt
-            if self._stuck_dt > 0.4:
-                # Initiate unstuck — back up for 0.7 s with a slight turn.
-                # Alternate the swing direction each time so we don't oscillate.
+            if self._stuck_dt > 0.25:
+                # Hard escape — full-speed reverse for 0.7 s with a turn.
+                # Alternate the swing each trigger so we don't loop.
                 self._unstuck_dt = 0.7
-                self._unstuck_dir = -self._unstuck_dir if self._unstuck_dir else 1.0
+                self._unstuck_dir = (-self._unstuck_dir
+                                       if self._unstuck_dir else 1.0)
                 self._stuck_dt = 0.0
-                self.status_msg = f"R{self.robot_id} stuck — backing off"
+                self.status_msg = (f"R{self.robot_id} no progress — "
+                                    f"backing off")
         else:
             self._stuck_dt = 0.0
 
         self._prev_pos = (r.x, r.y)
+        self._prev_dist_to_target = dist_to_target
 
     def _tick_unstuck(self, dt: float) -> None:
-        """Drive backward with a slight asymmetric wheel split so we also
-        rotate away from whatever we hit."""
-        bias = 0.25 * self._unstuck_dir
-        target_wl = -WHEEL_MAX_SPEED * (0.6 - bias)
-        target_wr = -WHEEL_MAX_SPEED * (0.6 + bias)
+        """Drive backward HARD with an asymmetric wheel split so we also
+        rotate away from whatever we hit. Full speed (was 60%) so the bot
+        actually breaks free of pin situations (e.g., another robot pushing
+        it into a goal)."""
+        bias = 0.35 * self._unstuck_dir
+        target_wl = -WHEEL_MAX_SPEED * (1.0 - bias)
+        target_wr = -WHEEL_MAX_SPEED * (1.0 + bias)
 
         self._v_left = _approach(self._v_left, target_wl,
                                   WHEEL_ACCEL, WHEEL_DECEL, dt)
