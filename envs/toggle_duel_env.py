@@ -254,6 +254,14 @@ class ToggleDuelEnv:
         self._wr = 0.0      # agent's right wheel velocity
         self._step = 0
         self._prev_resting: Optional[ToggleState] = None
+        # Anti-ram bookkeeping: previous agent position + previous distance
+        # to the primary (closest non-ours) toggle, used to reward forward
+        # progress and penalize getting stuck while pushing the throttle.
+        # Also previous primary-target id, so we can detect the flip moment
+        # (target changes) and skip the progress reward across the transition.
+        self._prev_pos: Optional[tuple[float, float]] = None
+        self._prev_primary_dist: Optional[float] = None
+        self._prev_primary_id: Optional[int] = None
 
     # ---------- core API ----------
 
@@ -301,7 +309,25 @@ class ToggleDuelEnv:
         # Track per-toggle previous state so we can give a flip bonus when
         # ANY toggle changes from non-ours to ours (not just one specific one).
         self._prev_resting = {t.id: t.resting_state for t in self.world.toggles}
+        # Initialize anti-ram trackers from the spawn pose
+        self._prev_pos = (self.agent_robot.x, self.agent_robot.y)
+        self._prev_primary_dist = self._primary_toggle_distance()
+        self._prev_primary_id = None  # will be set on first step
         return self._observation()
+
+    def _primary_toggle_distance(self) -> float:
+        """Distance from the agent to the closest non-ours toggle (or
+        absolute closest if we already own them all). Used by the
+        progress shaping reward."""
+        if self.agent_robot is None or self.world is None:
+            return 0.0
+        my_color = (ToggleState.RED if self.agent_alliance == Alliance.RED
+                     else ToggleState.BLUE)
+        non_ours = [t for t in self.world.toggles
+                     if t.resting_state != my_color]
+        pool = non_ours if non_ours else self.world.toggles
+        r = self.agent_robot
+        return min(math.hypot(t.x - r.x, t.y - r.y) for t in pool)
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, dict]:
         if not (0 <= action < self.ACTION_DIM):
@@ -373,6 +399,44 @@ class ToggleDuelEnv:
             by = -math.sin(r.theta)
             alignment = bx * nx + by * ny
             reward += 0.05 * max(0.0, alignment)
+
+            # ----- ANTI-RAM SHAPING ----------------------------------------
+            # The shaping terms below should ONLY fire while the bot is
+            # actively navigating between toggles, NOT while it's engaging
+            # one (pressing into the wall to flip it — that's a legitimate
+            # "stuck" pose at near-zero velocity). We gate on "more than
+            # ENGAGE_GATE_FT away from every toggle" to leave engagement
+            # alone, AND on "primary target unchanged since last step" so
+            # the flip moment itself doesn't get a phantom-progress signal
+            # from the target switching to a farther toggle.
+            ENGAGE_GATE_FT = 1.5
+            min_toggle_dist = min(math.hypot(tt.x - r.x, tt.y - r.y)
+                                    for tt in self.world.toggles)
+            navigating = (min_toggle_dist > ENGAGE_GATE_FT)
+            same_target = (self._prev_primary_id is not None and
+                            self._prev_primary_id == primary.id)
+
+            # 1) Progress reward — only when navigating + target unchanged.
+            cur_pos = (r.x, r.y)
+            if (navigating and same_target
+                    and self._prev_primary_dist is not None):
+                progress = self._prev_primary_dist - dist
+                progress = max(-0.5, min(0.5, progress))
+                reward += 0.5 * progress
+            self._prev_primary_dist = dist
+            self._prev_primary_id = primary.id
+
+            # 2) Stuck penalty — only when navigating (not while engaged).
+            commanded = max(abs(target_wl), abs(target_wr)) / WHEEL_MAX_SPEED
+            if (navigating and self._prev_pos is not None
+                    and commanded > 0.4):
+                dx_move = r.x - self._prev_pos[0]
+                dy_move = r.y - self._prev_pos[1]
+                speed = math.hypot(dx_move, dy_move) / self.DT
+                if speed < 0.3:
+                    reward -= 0.15
+            self._prev_pos = cur_pos
+            # ---------------------------------------------------------------
 
         self._step += 1
         done = self._step >= self.episode_steps
