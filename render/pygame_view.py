@@ -204,8 +204,11 @@ class App:
         # can cycle between models (BC vs DAGGER vs PPO vs self-play vs mixed)
         # with the M key and see how training improved the policy over time.
         self.nn_model_paths: list = self._discover_nn_models()
-        self.nn_model_idx: int = 0
-        # Prefer toggle_duel_policy.pt as the starting model if present.
+        # Default to the highest-numbered labeled checkpoint (latest training
+        # stage), since that's typically the strongest policy. Falls through
+        # to index 0 if nothing matches.
+        self.nn_model_idx: int = (len(self.nn_model_paths) - 1
+                                   if self.nn_model_paths else 0)
         for i, p in enumerate(self.nn_model_paths):
             if p.name == "toggle_duel_policy.pt":
                 self.nn_model_idx = i
@@ -1310,12 +1313,24 @@ class App:
 
     def _discover_nn_models(self) -> list:
         """Scan ai/*.pt for available policy checkpoints. Returns a list of
-        Path objects sorted alphabetically so the cycle order is stable."""
+        Path objects sorted alphabetically so the cycle order is stable.
+
+        Skips the unlabeled "publish" filenames (toggle_duel_policy.pt,
+        toggle_duel_policy_selfplay.pt) when a labeled equivalent
+        (policy_NN_*.pt) already exists, to avoid showing the same model
+        twice. If only the unlabeled file exists, it's still included so
+        the picker isn't empty on a fresh clone.
+        """
         from pathlib import Path
         ai_dir = Path(__file__).resolve().parent.parent / "ai"
         if not ai_dir.is_dir():
             return []
-        return sorted(ai_dir.glob("*.pt"))
+        all_pts = sorted(ai_dir.glob("*.pt"))
+        labeled = [p for p in all_pts if p.stem.startswith("policy_")]
+        if labeled:
+            return labeled
+        # Fallback: no labeled checkpoints yet, show whatever exists.
+        return all_pts
 
     def _current_nn_model_path(self):
         """Return the Path of the currently-selected NN policy file, or None."""
