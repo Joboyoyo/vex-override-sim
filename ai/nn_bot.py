@@ -116,14 +116,20 @@ class NNBot:
         if self._unstuck_dt > 0.0:
             self._unstuck_dt -= dt
             action = self._unstuck_action
-        elif self._stuck_dt > 1.0:
+        elif self._stuck_dt > 0.6:
+            # Escalating recovery — reverse FIRST since corner pile-ups are
+            # the most common stuck mode and reversing is what escapes them.
             self._consecutive_stuck += 1
             if self._consecutive_stuck == 1:
+                action = 2                  # straight reverse
+                tag = "reverse-out"
+            elif self._consecutive_stuck == 2:
+                # Mix: reverse with a turn (escapes diagonals)
+                action = self._rng.choice([7, 8])
+                tag = "reverse-arc"
+            elif self._consecutive_stuck == 3:
                 action = self._heuristic_action_toward_toggle()
                 tag = "heuristic→toggle"
-            elif self._consecutive_stuck == 2:
-                action = 2          # straight reverse
-                tag = "reverse-out"
             else:
                 action = self._rng.randint(1, len(DISCRETE_ACTIONS) - 1)
                 tag = "random"

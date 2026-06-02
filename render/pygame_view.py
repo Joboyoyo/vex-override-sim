@@ -303,9 +303,11 @@ def make_toggle_duel_world() -> World:
                   phase=Phase.DRIVER)
 
 
-# Viewport for the toggle-duel zoom (Q1 area: x ∈ [0, 6], y ∈ [-3, 3]).
-# Must be square so the field renders without stretch.
-DUEL_VIEWPORT = (0.0, 6.0, -3.0, 3.0)
+# Viewport for the toggle-duel zoom. Showing the FULL right half of the
+# field (x ∈ [-1, 7] effectively clamped at field edges, y ∈ [-4, 4]) so
+# the bots have enough vertical room to separate during pushing matches
+# instead of pile-up jamming against a tight clamp boundary. Square.
+DUEL_VIEWPORT = (-1.0, 7.0, -4.0, 4.0)
 
 
 # -- App ----------------------------------------------------------------------
