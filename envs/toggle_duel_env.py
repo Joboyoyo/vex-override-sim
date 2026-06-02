@@ -229,25 +229,26 @@ class ToggleDuelEnv:
                  episode_steps: int = DEFAULT_EPISODE_STEPS,
                  seed: Optional[int] = None,
                  use_shaping: bool = True,
-                 opponent_enabled: bool = True):
+                 opponent_enabled: bool = True,
+                 opponent_factory=None):
         """
-        use_shaping       — add tiny dense bonuses for proximity to the toggle
-                            and heading alignment with the wall normal. Without
-                            this, REINFORCE struggles to ever stumble onto the
-                            sparse +1 reward signal in a reasonable budget.
-        opponent_enabled  — if False, the opposing ScriptedBot sits motionless
-                            in IDLE. Useful as a curriculum step: first learn
-                            to reach the toggle, then learn to fight for it.
+        use_shaping        — dense shaping rewards.
+        opponent_enabled   — if False, opponent sits in IDLE (curriculum step).
+        opponent_factory   — callable(robot_id, world, collides_at) -> bot.
+                              Defaults to a ScriptedBot. Pass an NN-driven
+                              factory for SELF-PLAY training, where the
+                              opponent is a frozen copy of the current policy.
         """
         self.agent_alliance = agent_alliance
         self.episode_steps = episode_steps
         self.use_shaping = use_shaping
         self.opponent_enabled = opponent_enabled
+        self.opponent_factory = opponent_factory   # None => default scripted
         self._rng = random.Random(seed)
         self.world: Optional[World] = None
         self.agent_robot: Optional[Robot] = None
         self.opp_robot: Optional[Robot] = None
-        self.opp_bot: Optional[ScriptedBot] = None
+        self.opp_bot = None
         self.toggle: Optional[Toggle] = None
         self._wl = 0.0      # agent's left wheel velocity
         self._wr = 0.0      # agent's right wheel velocity
@@ -285,9 +286,14 @@ class ToggleDuelEnv:
                                       if r.alliance == Alliance.BLUE)
             self.opp_robot   = next(r for r in self.world.robots
                                       if r.alliance == Alliance.RED)
-        # Opponent: existing scripted bot, immediately in POST_LOADS phase
-        self.opp_bot = ScriptedBot(robot_id=self.opp_robot.id, world=self.world)
-        self.opp_bot.phase = "POST_LOADS"
+        # Build the opponent. Default = the rule-based ScriptedBot. Self-play
+        # passes an opponent_factory that constructs a frozen NNBot instead.
+        if self.opponent_factory is not None:
+            self.opp_bot = self.opponent_factory(self.opp_robot.id, self.world)
+        else:
+            self.opp_bot = ScriptedBot(robot_id=self.opp_robot.id,
+                                        world=self.world)
+            self.opp_bot.phase = "POST_LOADS"
         self.opp_bot.enabled = self.opponent_enabled
         self._wl = 0.0
         self._wr = 0.0
