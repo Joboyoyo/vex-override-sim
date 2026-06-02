@@ -1112,10 +1112,11 @@ class App:
             # Swap red duel bot ↔ neural-network policy (loads ai/toggle_duel_policy.pt)
             self._swap_red_bot_to_nn()
 
-        elif event.key == pygame.K_m:
-            # Cycle to the next NN policy checkpoint in ai/*.pt and reload
+        elif event.key == pygame.K_k:
+            # Cycle to the next NN policy checKpoint in ai/*.pt and reload
             # any active NN bots so improvements between training stages
             # (BC → DAGGER → PPO → self-play → mixed) can be compared live.
+            # (K because M was already taken by the midfield-debug toggle.)
             self._cycle_nn_model()
 
         elif event.key == pygame.K_b:
