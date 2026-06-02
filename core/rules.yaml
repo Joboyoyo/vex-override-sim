@@ -1,0 +1,113 @@
+# VEX V5RC Override 2026-2027 rules
+# Extracted from Game Manual v0.1 (April 27, 2026) — confirmed against PDF.
+# When v0.2 / v1.0 ships, edit values here; scoring.py reads from this file.
+
+match:
+  auto_seconds: 15
+  driver_seconds: 105        # 1:45
+  endgame_seconds: 20        # last 20s — "king of the hill" window
+  post_match_settle_seconds: 5  # SC1 — score is evaluated 5s after 0:00
+
+field:
+  size_ft: 12
+  quadrants: 4
+
+scoring_objects:
+  pins:
+    total: 63
+    composition:
+      red_blue: 4            # both halves: 1 red + 1 blue
+      red_yellow: 20         # 2 preloads + 10 match loads + 8 preplaced
+      blue_yellow: 20        # 2 preloads + 10 match loads + 8 preplaced
+      yellow_yellow: 19      # 2 match loads + 17 preplaced
+  cups:
+    total: 56
+    match_loads_red: 10
+    match_loads_blue: 10
+    preplaced_gray_up: 24
+    preplaced_clear_up: 12
+  match_loads_per_alliance:
+    pins: 10                 # red/yellow for red alliance; blue/yellow for blue
+    cups: 10
+
+goals:
+  total: 9
+  neutral_short: 4
+  neutral_tall: 1            # in midfield (center)
+  red_alliance: 2
+  blue_alliance: 2
+
+toggles:
+  count: 4                   # one per quadrant, on field-wall midpoint
+  valid_states: [red, blue, yellow]   # SC4 — 3 discrete scored orientations
+  set_predicate:
+    require_fully_seated: true        # face parallel and in contact with mounts
+    require_no_robot_contact: true    # must not be touching any robot
+
+points:
+  alliance_pin: 5            # SC3 — per displayed alliance-color half
+  yellow_pin: 10             # SC3+SC5 — per displayed yellow half, to toggle/midfield owner
+  yellow_unset_toggle: 0     # SC4 — yellow toggle or unset/contested: 0 to everyone
+  midfield_park_per_robot: 8 # SC6 — per robot in midfield vertical projection at end
+  auto_bonus: 12             # SC7 — to higher auto scorer
+  auto_bonus_tie: 6          # SC7b — each alliance gets 6 on a tie (includes 0-0)
+
+scoring_geometry:
+  # Per user verification — these reflect physical reality even where rule text is ambiguous.
+  pin_bottom_in_goal_covered: true    # bottom half of pin sitting in goal is hidden
+  pin_top_of_stack_exposed: true      # top of topmost pin is visible unless capped by gray cup
+  tall_goal_same_coverage_as_short: true  # no special coverage rules for tall goal
+  conservation_law: "N pins in a stack -> exactly N visible halves"
+
+orientation:
+  # Pin orientation (which half is the visible/scored half) is effectively committed
+  # at stack time. Re-orienting requires destacking — uneconomic in-match.
+  commit_at_placement: true
+
+awp:
+  # SC8 — Autonomous Win Point requirements (standard events)
+  # Modified criteria for Championship-qualifying events releases September 3, 2026.
+  pins_placed_for_alliance: 7
+  distinct_goals_with_min_pins: 3
+  min_pins_per_distinct_goal: 2
+  robots_clear_of_field_perimeter: true
+  no_violations_in_auto: true
+  # Pins on the opposing side of the Autonomous Line do NOT count toward these totals.
+  exclude_opposing_side_pins: true
+  championship_qualifying_modified_after: "2026-09-10"
+  championship_modification_hint: "possibly 8 pins / 4 goals — TBD in Sept 3 update"
+
+descoring:
+  # SG9 — opposing alliance goals fully protected (no place, no remove)
+  alliance_goal_opposing_interaction: false
+  # SG10 — can't remove from neutral or opposing goals
+  remove_from_neutral_goal: false
+  remove_from_opponent_alliance_goal: false
+  # Implication: alliance pin scored in any goal is permanent.
+
+possession:
+  max_pins_per_robot: 1      # SG6
+  max_cups_per_robot: 1      # SG6
+  plowing_allowed: true      # SG6a — clearly demonstrate no possession
+
+robot:
+  start_size_in: 18          # SG1 — 18x18x18 starting box
+  horizontal_expansion_in: 24  # SG2 — 24x24 max horizontal footprint
+  vertical_expansion_in: 50    # SG3 — 50" max height (any time outside midfield in endgame)
+  endgame_midfield_vertical_in: 18  # SG12 — 18" max if in midfield projection during endgame
+  preload_pins_per_robot: 1    # SG5 — red preloads are red/yellow; blue are blue/yellow
+
+autonomous_line:
+  # SG7 — robots may not cross during auto; objects on the line are shared
+  crossing_violation_during_auto: true
+  midfield_and_on_line_objects_shared: true
+  defensive_auto_strategies_penalized: true
+
+loader:
+  count: 4                   # 2 adjacent to each alliance station
+  match_loads_during_driver_only: true   # SG11a — no match loads in auto
+  legal_introductions:
+    - single_pin
+    - single_cup
+    - nested_cup_and_pin
+  removal_through_bottom_only: true     # SG11c — alliance-color match

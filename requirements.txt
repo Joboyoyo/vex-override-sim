@@ -1,0 +1,10 @@
+PyYAML>=6.0
+pytest>=8.0
+pygame>=2.5
+numpy>=1.26
+torch>=2.2
+
+# Future milestones:
+# pymunk>=6.6
+# gymnasium>=0.29
+# pettingzoo>=1.24

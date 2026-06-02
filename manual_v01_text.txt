@@ -1,0 +1,487 @@
+
+===== PAGE 1 =====
+Copyright 2026, VEX Robotics Inc.
+Section 2
+The Game
+===== PAGE 2 =====
+8
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Section 2 - The Game
+VEX V5 Robotics Competition Override: A Primer
+VEX V5 Robotics Competition Override is played on a 12’ x 12’ square Field, set up as illustrated in the 
+figures throughout this manual. 
+In Head-to-Head Matches, two (2) Alliances — one (1) “red” and one (1) “blue” — composed of two (2) Teams 
+each, compete in Matches consisting of a fifteen (0:15) second Autonomous Period followed by a one 
+minute and forty-five second (1:45) Driver Controlled Period. 
+The object of the game is to attain a higher score than the opposing Alliance by stacking Pins and Cups 
+on Goals, setting Toggles to your Alliance color, and ending the Match with your Robot in the contested 
+Midfield. 
+An Autonomous Win Point is awarded to any Alliance that completes a set of assigned tasks by the end of 
+the Autonomous Period. 
+An Autonomous Bonus is awarded to the Alliance that has the most points at the end of the Autonomous 
+Period. 
+Teams may also compete in Robot Skills Matches, where one (1) Robot tries to score as many points as 
+possible. See Section 3 for more information. 
+At the VEX U Collegiate level, Teams play in a modified Tournament with a 30-second Autonomous Period 
+and additional Robot build challenges. See Section 6.
+
+===== PAGE 3 =====
+9
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Field Overview
+The V5RC Override Field consists of the following:
+ ● 56 Cups
+ ० 20 Match Loads
+ ■ 10 for red Alliance
+ ■ 10 for blue Alliance
+ ० 24 that start the Match in predetermined locations on the Field (gray side up)
+ ० 12 that start the Match in predetermined locations on the Field (clear side up) 
+ ● 63 Pins
+ ० 4 red/blue that start the Match in predetermined locations
+ ० 20 red/yellow
+ ■ 2 Preloads
+ ■ 10 Match Loads
+ ■ 8 that start the Match in predetermined locations
+ ० 20 blue/yellow
+ ■ 2 Preloads
+ ■ 10 Match Loads
+ ■ 8 that start the Match in predetermined locations
+ ० 19 yellow/yellow
+ ■ 2 Match Loads
+ ■ 17 that start the Match in predetermined locations  
+ ● 9 Goals
+ ० 4 Alliance colored
+ ■ 2 red
+ ■ 2 blue
+ ० 5 neutral colored
+ ■ 4 short
+ ■ 1 tall 
+ ● 4 Toggles 
+ ● 4 Loaders, two adjacent to each Alliance Station
+Note: The illustrations in this section of the Game Manual are intended to provide a general visual 
+understanding of the game. Some figures may highlight or change the appearance of certain 
+Field Elements and Scoring Objects to emphasize or clarify intent.
+Teams should refer to official Field specifications, found in Appendix A, for exact Field dimensions, a 
+full Field bill of materials, and exact details of Field construction.
+===== PAGE 4 =====
+10
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Figure FO-1: An overhead view of the V5RC Override Field, with Alliance Stations  (orange),
+Loaders (white), Toggles (pink), and Goals (green) highlighted.
+===== PAGE 5 =====
+11
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Figure FO-2: An overhead view of the V5RC Override Field in its starting configuration, with icons representing orientation of Scoring Objects
+===== PAGE 6 =====
+12
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Figure FO-3:  The recommended locations of the Head Referee  (black & white stripes), and Scorekeeper Referees  (black & white checkerboard).
+===== PAGE 7 =====
+13
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Game Design Philosophy - A Letter from the GDC
+We want to take the opportunity to explain how this game was designed and what kind of gameplay we 
+expect to see during the season. This section also points out parts of the game that we will watch closely in 
+case updates are needed.  
+This is not a rules section.  It does not add any new rules. Instead, it helps you understand the purpose of the 
+game and what we as designers had in mind.
+What This Game is About & Scoring
+Override is a game that focuses on stacking and teamwork. We intend for Teams to work together with their 
+Alliance partners to assemble stacks, gain points using Scoring Objects, and control Toggles to outscore 
+their opponents.
+Because of this, success in the game is not just about building a good Robot. It also depends on how well you:
+ ● Communicate with your partner
+ ● Plan your strategy
+ ● Time your actions during a Match
+Teams that coordinate well and make smart decisions will have an advantage.
+The game is designed so that most points come from constructive actions, such as:
+ ● Building stacks
+ ● Flipping Toggles
+ ● Positioning your Robot effectively
+Interaction with the opposing Alliance is still an important part of the game. However, Matches cannot be 
+dominated by tearing down what the other Alliance has built. Some defense and disruption is expected, but 
+the main focus should stay on building and scoring.
+ 
+If strategies that focus mostly on preventing stacks become too common, the Game Design Committee  may 
+consider making changes to ensure the game remains interesting with many strategy choices. We will look at 
+how often these strategies are used and how they affect gameplay compared to our intentions.
+Large Point Swings with Toggles and Yellow Pins  
+The scoring values in Override are designed to encourage dynamic strategy and decision making. Because 
+of this, it is possible for actions like controlling Toggles or scoring yellow Pins to create large point swings 
+during a Match.
+ 
+These moments can be exciting, but they should not become the only way to win. Teams should still have 
+multiple viable strategies, including building stacks and competing in the Endgame.
+===== PAGE 8 =====
+14
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+We will monitor how these point swings impact Matches throughout the season. If they begin to outweigh 
+other scoring opportunities or reduce strategic variety, the Game Design Committee  may adjust point 
+values to maintain a balanced and engaging game.  
+The Endgame: Final 20 Seconds  
+The last 20 seconds of the Match are designed to feel more intense and competitive. During this time, the 
+game shifts to a “king of the hill” style challenge in the Midfield. This section of the Match will likely include 
+increased Robot interaction. As such:
+ ● Positioning and timing become critical
+ ● Robot durability matters more
+Teams should expect more crowded and contested conditions than earlier in the Match.
+At the same time, there are still rules in place (like limits on how Robots can expand) to help prevent issues 
+such as tipping over or getting tangled with other Robots. If the Endgame consistently leads to problems 
+like Robots getting stuck, tipping too often, or not being able to recover, the Game Design Committee  may 
+adjust rules to keep Matches fair and playable.
+Using Sensors in the Game  
+Override is a game where sensors can be very helpful. Tools like AI Vision Sensors and Optical Sensors can 
+help your Robot:
+ ● Identify objects
+ ● Interact with Toggles
+ ● Navigate the Field
+The Game Design Committee  will work to support sensor use through Field and game design. However, 
+real-world conditions are not always perfect. Lighting and object placement may vary. Because of this, 
+Teams should design and code their Robots so their sensors can handle small changes and still work 
+reliably during a Match.
+In addition, Robot rules will continue to be reviewed to make sure the game stays fair throughout the 
+season. One important focus is preventing Teams from building Robots that could interfere with sensors in 
+unfair ways like intentionally trying to confuse sensors or adding parts that look like Field Elements.
+Making sure all Teams can rely on their sensors to work as expected is an important part of fair competition.
+Have a great season!
+ - The VEX V5 Robotics Competition Game Design Committee
+===== PAGE 9 =====
+15
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Scoring
+Autonomous Bonus 12 Points
+Each Placed Alliance-colored Pin 5 Points
+Each Owned yellow Pin 10 Points
+Each Robot in the Midfield 8 Points
+<SC1> All scoring statuses are evaluated after the Match ends.  Scores are calculated five seconds after 
+the Match ends, or once all Scoring Objects, Field Elements, and Robots on the Field come to rest, whichever 
+comes first.
+a. This 5-second delay is intended to be the only permitted “benefit of the doubt” for last-second scoring 
+actions. If an object or Robot is still in motion and “too close to call” between two states at the 5-second 
+mark, then the less advantageous of the two states should be awarded to the Robot(s) in question. A 
+Robot which is breaking the plane of the Midfield but slowly droops down and away from the Midfield at 
+five (5) seconds would not be considered in the Midfield.
+b. At the end of the Match, the on-screen timer displayed by Tournament Manager will hold the current Match 
+information and “0:00” for five (5) seconds before moving to queue the next Match. This should be the 
+primary 5-second visual cue used by Teams and Head Referees.
+c. This 5-second delay is only intended to be a “benefit of the doubt” grace period, not an extra five seconds 
+of Match time. Robots which are designed to strategically exploit this grace period will receive a Minor 
+Violation, and any post-Match movement will not be included in score calculation (i.e., the Match will be 
+scored as it was at 0:00).
+d. Referees should avoid contacting or moving Robots and/or Scoring Objects as much as possible while 
+evaluating scoring statuses. If an object must be moved to evaluate the status of another object, its status 
+must be agreed upon by all Teams and the Head Referee, and noted or recorded, before it is moved.
+e. Referees must record counts based on verified scoring statuses evaluated after the Match, using final 
+positions of Scoring Objects, Field Elements, and Robots. Point considerations used to determine whether 
+a Violation is Match Affecting (e.g., specified in Violation Notes) should NOT be added to or deducted from 
+the actual score, and points scored during a Violation should not be deducted from a score.
+<SC2> A Pin is considered Placed  if it meets all of the following criteria at the end of the Match:
+a. The Pin is partially or entirely nested with a Goal, or with a Cup that is partially or entirely nested to another 
+Placed Pin.
+b. That half of the Cup only contains one Pin. 
+In the context of <SC2>, nested means that one half of a Pin is partially or completely con -
+tained within the inner volume of the Cup. In other words, the Pin is breaking an imaginary 
+plane at the opening of a Cup, in any way. Robot contact does not matter for the purposes of 
+<SC2>, and a Robot that is contacting or possessing a Pin that still meets the criteria present -
+ed in <SC2> does not negate the Placed status, provided no other rules are broken (particu -
+larly <SG6>).
+===== PAGE 10 =====
+16
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+<SC3> Each Pin consists of two halves. Each Placed Pin can have one or two Scored halves.  A half counts 
+as Placed for the corresponding Alliance if it is either nested inside the transparent half of a Cup or is not 
+covered by a Cup.
+a. A Placed Pin displaying the color red is scored for the red Alliance.
+b. A Placed Pin displaying the color blue is scored for the blue Alliance.
+c. A Placed Pin displaying the color yellow is scored for the Alliance that Owns the Pin (see <SC5>).
+<SC4> A Toggle is considered set to a color when it meets all of the following criteria at the end of the 
+Match:
+a. The Toggle must be fully seated, such that there is a face of the Toggle in contact and parallel with its 
+mounts on the Field Perimeter at rest. (see Figure SC5-1)
+b. The Toggle is not in contact with a Robot from either Alliance. 
+If a Toggle is not considered set to a color, it is considered a neutral Toggle, and neither Alliance receives 
+ownership of the yellow Pins in that Quadrant. While the Toggle has infinite potential orientations, only three 
+discrete orientations are considered scored states.
+Figure SC2-1 These Pins all count as Placed , as 
+they are all at least partially nested within each other, 
+and are not being contacted by any Robots.
+Figure SC2-1 This Pin is not Placed , as it is 
+not nested within a Cup or Goal.
+===== PAGE 11 =====
+17
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+<SC5> Each Pin with one or more yellow halves scored can  be Owned by an Alliance.
+a. A yellow Pin that is Placed in a Quadrant is Owned by an Alliance if the Toggle in that Quadrant is set to the 
+Alliance’s color. If a Toggle is set to yellow, Placed yellow Pins in that Quadrant do not score points. (see 
+<SC3>)
+b. A yellow Pin that is Placed in the Midfield is Owned by the Alliance that ends the Match with a greater 
+number of Robots in the Midfield (see <SC6>). If both Alliances end the Match with an equal number of 
+Robots in the Midfield, yellow Pins scored in the Midfield are not Owned by either Alliance and do not score 
+points.
+Figure SC5-1 Because the Quadrant’s  Toggle is set to red, yellow 
+Pins Placed in this Goal are scored for the red Alliance .
+Figure SC5-2 More Robots from the blue Alliance  are in the Midfield , so 
+the yellow Pins scored in this center Goal are scored for the blue Alliance .
+
+===== PAGE 12 =====
+18
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Toggle: YellowYellow Toggle: Blue Toggle: Red
+Red Pins: 15 points Red Pins: 15 Points Red Pins: 15 Points
+Blue Pins: 5 Points Blue Pins: 5 Points Blue Pins: 5 Points
+YellowYellow Pins: 0 Points YellowYellow Pins: 30 Points 
+(scored for Blue)
+YellowYellow Pins: 30 Points 
+(scored for Red)
+Total
+Red: 15 Points / Blue: 5 Points
+Total
+Red: 15 Points / Blue: 35 Points
+Total
+Red: 45 Points / Blue: 5 Points
+===== PAGE 13 =====
+19
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+<SC6> A Robot counts as being in the Midfield  if any part of the Robot is within the infinite 3D vertical 
+projection of the Midfield at the end of the Match.
+<SC7> Scoring of the Autonomous Bonus is evaluated immediately after the Autonomous Period ends.
+a. Points for ending the Autonomous Period in the Midfield are not included in the calculation of an 
+Alliance’s score for the purposes of determining the Autonomous Bonus.
+b. If the Autonomous Period ends in a tie, including a zero-to-zero tie, each Alliance will receive an 
+Autonomous Bonus of six (6) points.
+c. Any Violations, Major or Minor, committed during the Autonomous Period will result in the Autonomous 
+Bonus being automatically awarded to the opposing Alliance. See <GG13>.
+d. Per rule <GG13>, if both Alliances commit Violations during the Autonomous Period, then no 
+Autonomous Bonus will be awarded. 
+This rule is applied differently for VEX U. See Rule <VUG5>.
+ 
+ 
+<SC8> An Autonomous Win Point is awarded to any Alliance that ends the Autonomous Period with all of 
+the following tasks completed, and that has committed no Violations during the Autonomous Period:
+1. At least seven (7) Pins Placed for your Alliance (does not include Pins scored in Quadrants on the 
+opposing side of the Autonomous Line)
+2. At least three (3) Goals each contain at least two (2) Pins scored for your Alliance (does not include Goals 
+in Quadrants on the opposing side of the Autonomous Line)
+3. Neither Robot is contacting the Field Perimeter
+Autonomous Win Point criteria will be slightly modified for events which qualify directly to 
+the World Championship (e.g., Event Region Championships and Signature Events) and may 
+be further modified for the World Championship.
+The modified criteria for events which qualify directly to the World Championship will be 
+released in the September 3, 2026, Game Manual update. Any Championship-qualifying 
+events held prior to September 10, 2026, will use the standard criteria listed in this rule. 
+The modification(s) will be minor, and will be intended to provide an increased challenge 
+over the criteria listed above. For example, one possibility could be “At least eight (8) Pins 
+Placed” instead of seven (7) and/or “At least four (4) Goals” instead of three (3). The standard 
+criteria for all other events will not change.
+This rule is applied differently for VEX U. See Rule <VUG6>.
+===== PAGE 14 =====
+20
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Specific Game Rules
+<SG1> Starting a Match.  Prior to the start of each Match, each Robot must be placed such that it meets all 
+of the following criteria:
+a. No larger than 18” (457.2 mm) long by 18” (457.2 mm) wide by 18” (457.2 mm) tall.
+b. Not contacting any Scoring Objects other than a maximum of one (1) Preload. See rule <SG5>.
+c. Not contacting Goals, Loaders, Load Zones, or Toggles.
+d. Not contacting any other Robots, and not sharing a Quadrant with another Robot.
+e. Completely stationary (i.e., no motors or other mechanisms in motion).
+f. Contacting the Field tiles and Field Perimeter on their Alliance’s side of the Autonomous Line. 
+Note: Using external influences, such as Preloads or the Field Perimeter, to maintain a Robot’s 
+starting size is only acceptable if the Robot would still satisfy the constraints of <R3> and pass 
+inspection without these influences.
+This rule has additional Violation notes. See Appendix C.
+ 
+Clause A of this rule is applied differently for VEX U. See Rule <VUG1> and <VUG3>.
+Figure SG-1: An overhead view of the Field, with four Robots in legal starting positions.
+===== PAGE 15 =====
+21
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+<SG2> Horizontal expansion is limited. Once the Match begins, Robots may expand horizontally beyond 
+the starting size limit within the following criteria:
+a. The Robot can never be larger than 24” wide or 24” long (must always be able to fit within a 24”x24” 
+square horizontal footprint).
+Teams should be aware that Robots may incidentally expand horizontally while extending 
+vertically (e.g., mechanisms that arc, swing, or deploy upward). Upon request, Teams must 
+be prepared to demonstrate that their Robot does not exceed the maximum size constraint 
+of 24” x 24” at any point, including while any vertical expansion mechanisms are in use.
+This rule has additional Violation notes. See Appendix C.
+<SG3> Vertical expansion is limited.  Once the Match begins and until the Endgame period begins, Robots 
+may expand vertically beyond the starting size limit, but no part of the Robot may exceed an overall height 
+of 50” at any point during the Match (must always be able to fit within a hypothetical 50” vertical sizing box).
+<SG4> Keep Scoring Objects in the Field.  Teams may not remove Scoring Objects from the Field. A 
+Scoring Object that leaves the Field during Match play, intentionally or unintentionally, will be returned to 
+the Field in a location near where it left, in contact with the Field tiles and the Field Perimeter but no other 
+Field or Scoring Objects and no Robots. Volunteers should return Scoring Objects as quickly as possible, 
+but this time will vary between Events and Matches, and any delay in returning an object should not be 
+considered Match Affecting or cause for a replay.
+a. If a Scoring Object is leaving the Field (as determined by the Head Referee), but is deflected back into 
+the Field by a Drive Team Member, field monitor, ceiling/wall, or other external factor, it should still be 
+considered “out of the Field” and removed by a Scorekeeper Referee or Head Referee. If the redirection 
+occurred due to contact with a Drive Team Member, it will be at the Head Referee’s discretion whether 
+or not <GG4> (hands out of the Field) should apply.
+b. A Scoring Object that comes to rest on top of the Field Perimeter is still considered to be inside the Field 
+unless it contacts something outside of the Field (e.g., volunteer, Drive Team Member, field monitor, etc.), 
+and cannot be retrieved by a Drive Team Member or volunteer. 
+This rule has additional Violation notes. See Appendix C.
+Figure SG2: A demonstration of how the size of the Robot may change horizontally through the course of a vertical expansion.
+===== PAGE 16 =====
+22
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+<SG5> Each Robot gets one Pin as a Preload.  Red Alliance Preloads are red/yellow Pins; blue Alliance 
+Preloads are blue/yellow Pins. Prior to the start of each Match, each Preload must be placed such that it 
+meets all of the following criteria:
+a. Contacting one Robot of the same Alliance color as the Preload.
+b. Not contacting the same Preload as another Robot.
+c. Not contacting other Scoring Objects.
+d. Not contacting any other Goals, Loaders, Load Zones, or Toggles. 
+Note: If a Robot is not present for their Match, then that Robot’s Preload may be used as a Match Load 
+in accordance with <SG11>.
+This rule has additional Violation notes. See Appendix C.
+<SG6> Possession is limited to a maximum of one Pin and one Cup.  Robots may not have possession 
+of more than one (1) Pin at once. Robots may not have possession of more than (1) Cup at once. Robots in 
+Violation of this rule must immediately stop all actions except for attempting to remove the excess Scoring 
+Objects.
+If they are unable to remove the excess Scoring Objects, then they must return to a legal starting position 
+(as described by <SG1>). They will not be eligible to receive points for ending the Match in the Midfield, and 
+cannot interact with Toggles, Goals, or other Scoring Objects while in possession of excess Scoring Objects.
+a. Plowing multiple Scoring Objects is permitted. Teams which employ plowing strategies are encouraged to 
+clearly demonstrate that none of the Scoring Objects are being possessed, e.g., by using a flat face of the 
+Robot with no active mechanisms.
+ 
+<SG7> Don’t cross the Autonomous Line, and don’t interfere with your opponents’ actions.  During the 
+Autonomous Period, Robots may not contact foam tiles, Scoring Objects, or Field Elements which are on the 
+opposing Alliance’s side of the Autonomous Line.
+a. The Autonomous Period should be primarily Offensive, with Teams focusing on scoring and executing 
+strategic maneuvers rather than Defensive disruption. Teams should avoid actions that are primarily 
+Defensive in nature, including but not limited to:
+i. Intentionally disrupting Scoring Objects or Field Elements on the opponent’s side of the Autonomous 
+Line.
+ii. Deliberately contacting an opponent’s Robot to interfere with their autonomous path.
+b. Scoring Objects that begin the Match in contact with the Autonomous Line are not considered to be on 
+either side, and may be utilized by either Alliance during the Autonomous Period. For the purpose of this 
+rule, all 20 Scoring Objects that begin the Match on or at the Autonomous Line are considered to be in 
+contact with the Autonomous Line. See Figure SG-7.
+c. While incidental contact or unintentional interactions may occur with Robots on the other side of the 
+Autonomous Line, Teams that employ deliberate Defensive autonomous strategies that impact their 
+opponents’ autonomous routines may be subject to Minor or Major Violations at the discretion of the 
+Head Referee.
+===== PAGE 17 =====
+23
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+d. Teams cannot intentionally place Scoring Objects on the opponent’s side of the Autonomous Line.
+e. Contact with either of the following during the Autonomous Period will result in the Autonomous Bonus 
+and an Autonomous Win Point being awarded to the opposing Alliance, unless the opposing Alliance 
+also breaks rules in the Autonomous Period:
+i. An opponent Robot that isn’t interacting with the Autonomous Line, objects that begin the Match 
+positioned above or in contact with the Autonomous Line, or the Midfield (see <SG8>).
+ii. Scoring Objects on the other side of the Autonomous Line. 
+This rule has additional Violation notes. See Appendix C.
+Figure SG-7: These Scoring Objects  (circled in red) would be considered to be on the Autonomous Line .
+<SG8> Engage with the Midfield and/or Autonomous Line during the Autonomous Period at your 
+own risk. Any Robot that engages with the Midfield and/or Scoring Objects that begin the Match on the 
+Autonomous Line should be aware that opponent Robots may also choose to do the same. Per <GG12> and 
+<GG13>, Teams are responsible for the actions of their Robots at all times.
+a. For the purposes of this rule, “engages with” means any combination of:
+i. Contacting foam tiles within the Midfield
+ii. Contacting the Goal in the Midfield
+iii. Contacting Scoring Objects that begin the Match on the Autonomous Line
+b. If opposing Robots contact one another while both engaging with the Midfield or the Autonomous 
+Line, and a possible <GG14> Violation occurs (e.g., damage, Entanglement, or tipping over), a judgment 
+call will be made by the Head Referee within the context of <GG14> and <GG15> (just as it would if the 
+===== PAGE 18 =====
+24
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+interaction had occurred during the Driver Controlled Period ).
+c. If opposing Robots contact one another while both engaging with the Midfield or Autonomous Line, and 
+an incidental Violation of <SG4> occurs, no penalty will be assessed on either Alliance.
+d. Intentional, strategic, repeated, or egregious offenses, such as negatively impacting Robots that are not 
+engaging with the Midfield or the Autonomous Line, may still be deemed a Violation of <GG13>, <GG14>, 
+<GG15>, <SG7>, <G1>, and/or <S1> at the Head Referee’s discretion.
+The Midfield and the Scoring Objects that begin on the Autonomous Line are intended to be 
+utilized by both Alliances during the Autonomous Period. This will inevitably result in Ro-
+bot-on-Robot interactions, both incidental and intentional. The overarching intent of <SG8> 
+is for the vast majority of these interactions to result in no rule Violations and / or penalties 
+for either Alliance, just as no rules Violations occur in 99% of Driver Controlled interactions.
+Teams are responsible for the actions of their Robots at all times. A Robot with a small wheel 
+base, which tips over every time they enter the Midfield and contacts an opponent, should 
+not attempt to claim a <GG14> Violation on their opponent.
+With that being said, the Midfield is a neutral zone, not a “free-for-all” zone. The intent of 
+clause D is to provide Head Referees with the leeway to still make a judgment call, if needed, 
+when a Team has chosen to exploit this rule beyond its intent. Reckless or unsafe strategies 
+aimed solely at the destruction, damage, tipping over, Entanglement, Trapping, or forcing of 
+an opponent into a penalty are still prohibited in the VEX Robotics Competition. 
+<SG9> Alliance Goals are protected.  Robots may not directly or indirectly interact with the opposing Alli-
+ance-colored Goals. This includes both Placing and removing Scoring Objects.
+This rule has additional Violation notes. See Appendix C.
+ 
+<SG10> Scoring Objects can’t be removed from neutral or opposing Alliance-colored Goals.  Robots may 
+not remove Scoring Objects from Goals that do not match their Alliance color.
+This rule has additional Violation notes. See Appendix C.
+<SG11> Match Loads may be introduced during the Match under certain conditions.  For the purpose of 
+this rule, “introduce” refers to the moment when a Drive Team Member has released a Scoring Object into a 
+Loader.
+During this action, a Drive Team Member’s hands may temporarily break the plane of the Field Perimeter. This 
+momentary interaction is an exception to rule <GG4>. Excessive, unnecessary, or unsafe actions while intro -
+ducing a Match Load may be considered a Violation of <S1> and/or <G1> at the Head Referee’s discretion.
+===== PAGE 19 =====
+25
+VEX V5 Robotics Competition Override - Game Manual
+Copyright 2026, VEX Robotics Inc.
+Version 0.1 - Released April 27, 2026
+Drive Team Members may introduce Match Load Scoring Objects by placing a single Pin, a single Cup, 
+or a nested Cup and Pin into either of their Alliance-colored Loaders. Scoring Objects can be introduced 
+through the top of the Loader when the Loader is not lifted, or through the back of the Loader when the 
+Loader is raised by a Drive Team Member.
+a. Scoring Objects may only be added to Loaders during the Driver Controlled Period of a Match.
+b. A Match Load Scoring Object may not be contacted by a Robot prior to being placed into a Loader.
+c. Match Load Scoring Objects may only be removed through the bottom opening of the Loader, by a 
+Robot whose Alliance color matches the Loader. 
+This rule is applied differently for VEX U. See Rule <VUG4>.
+This rule has additional Violation notes. See Appendix C.
+Figure SG11-1 Scoring Objects  can be introduced 
+through the top opening of the Loader.
+Figure SG11-2: Scoring Objects  may also be introduced 
+through the back of the Loader while it is raised.
+<SG12> Some rules change during the Endgame period.
+1. Vertical expansion is limited to 18” for any Robot that is partially or entirely within the infinite 3D vertical 
+projection of the Midfield.
+2. Robots that attempt to end the Match in the Midfield should expect vigorous interactions from 
+opponent Robots. When a Robot is contacting or engaging with the Midfield, or is in proximity to the 
+Midfield, incidental damage that is caused by opponent Robots pushing, tipping, or becoming Entangled 
+with them would not be considered a Violation of <GG14>. Intentional damage or dangerous mecha -
+nisms may still be considered a Violation of <S1>, or <G1> at the Head Referee’s discretion. 
+This rule is applied differently for VEX U. See Rule <VUG7>
