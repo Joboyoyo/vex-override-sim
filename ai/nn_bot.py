@@ -50,12 +50,21 @@ class NNBot:
         self._wl = 0.0
         self._wr = 0.0
         self.enabled: bool = True
-        # Stuck detection
+        # Stuck detection + escalating recovery.
+        # The bot can be stuck two ways:
+        #   1) NN keeps picking "stop" or similar → translation freezes.
+        #   2) NN keeps picking "turn in place" → bot spins but doesn't translate
+        #      (heuristic-toward-toggle also picks turn-in-place when toggle is
+        #      to the side, so escalation is needed to break this loop).
+        # We track CONSECUTIVE stuck firings — each subsequent one escalates
+        # the recovery action: heuristic → reverse → random.
         self._stuck_dt: float = 0.0
         self._unstuck_dt: float = 0.0
         self._prev_pos: tuple[float, float] = (0.0, 0.0)
-        # Cached for stuck override
         self._unstuck_action: int = 0
+        self._consecutive_stuck: int = 0
+        import random as _random
+        self._rng = _random.Random(robot_id)
         # For interop with App._rebind_bots_to_world — these are read but
         # never used by the NN logic.
         self.state: str = "NN"
@@ -86,28 +95,43 @@ class NNBot:
             self._wr = 0.0
             return
 
-        # Pick an action. When stuck for >1s, override with a goal-directed
-        # action ("drive toward the toggle") for ~0.8s — gives the bot the
-        # nudge it needs to escape and lets the network take over again from
-        # a fresh state.
+        # Pick an action. Escalating un-stuck if the bot's been frozen >1s:
+        #   1st trigger → drive toward toggle (heuristic)
+        #   2nd trigger → reverse straight back (escape walls/clamps)
+        #   3rd+ trigger → random non-stop action (last resort)
+        # Each override lasts ~0.8s before handing back to the network. If
+        # the bot actually moved (>0.05 ft accumulated) the consecutive
+        # counter resets so we start over from the heuristic next time.
         r = self.robot
         moved = math.hypot(r.x - self._prev_pos[0], r.y - self._prev_pos[1])
         if moved < 0.003:
             self._stuck_dt += dt
         else:
             self._stuck_dt = 0.0
+            if moved > 0.05:
+                # Significant progress — bot is escaping cleanly
+                self._consecutive_stuck = 0
         self._prev_pos = (r.x, r.y)
 
         if self._unstuck_dt > 0.0:
             self._unstuck_dt -= dt
             action = self._unstuck_action
         elif self._stuck_dt > 1.0:
-            self._unstuck_action = self._heuristic_action_toward_toggle()
+            self._consecutive_stuck += 1
+            if self._consecutive_stuck == 1:
+                action = self._heuristic_action_toward_toggle()
+                tag = "heuristic→toggle"
+            elif self._consecutive_stuck == 2:
+                action = 2          # straight reverse
+                tag = "reverse-out"
+            else:
+                action = self._rng.randint(1, len(DISCRETE_ACTIONS) - 1)
+                tag = "random"
+            self._unstuck_action = action
             self._unstuck_dt = 0.8
-            action = self._unstuck_action
             self._stuck_dt = 0.0
-            self.status_msg = (f"R{self.robot_id} NN un-stuck → heuristic "
-                                f"drive-to-toggle (a={action})")
+            self.status_msg = (f"R{self.robot_id} NN un-stuck "
+                                f"[{self._consecutive_stuck}: {tag}] a={action}")
         else:
             obs = self._observation()
             action = self.policy.act(obs, greedy=self.greedy)
