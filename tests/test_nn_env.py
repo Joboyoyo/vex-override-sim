@@ -19,7 +19,10 @@ def test_env_reset_and_step_shapes():
     assert obs.shape == (env.OBS_DIM,)
     assert isinstance(reward, float)
     assert isinstance(done, bool)
-    assert "resting_state" in info
+    # New env tracks aggregate ownership across all 4 toggles, not a single
+    # toggle's resting_state field.
+    assert "ours_count" in info
+    assert "n_toggles" in info
 
 
 def test_env_completes_full_episode():

@@ -94,220 +94,19 @@ WING_LENGTH_FT           = 3.0 / 12.0            # 0.25 ft thick along heading
 WING_BACK_OFFSET_FT      = (14.0 / 12.0) / 2.0   # 0.583 ft — front bumper
 
 
-def make_empty_world() -> World:
-    """Field layout per the user-confirmed manual positions.
-
-    Autonomous line: diagonal y = -x.
-    Red side (y + x < 0): LEFT (Q3) and BOTTOM (Q2) quadrants.
-    Blue side (y + x > 0): TOP (Q0) and RIGHT (Q1) quadrants.
-    """
-    goals = [
-        # Alliance goals — 2 red on red side, 2 blue on blue side
-        Goal(0, GoalType.ALLIANCE, Alliance.RED,  x=-4.0, y=-2.0, quadrant=3, awp_side=Alliance.RED),
-        Goal(1, GoalType.ALLIANCE, Alliance.RED,  x=-2.0, y=-4.0, quadrant=2, awp_side=Alliance.RED),
-        Goal(2, GoalType.ALLIANCE, Alliance.BLUE, x=2.0,  y=4.0,  quadrant=0, awp_side=Alliance.BLUE),
-        Goal(3, GoalType.ALLIANCE, Alliance.BLUE, x=4.0,  y=2.0,  quadrant=1, awp_side=Alliance.BLUE),
-        # Neutral short goals — one per quadrant
-        Goal(4, GoalType.SHORT, Alliance.NEUTRAL, x=-2.0, y=4.0,  quadrant=0, awp_side=Alliance.BLUE),
-        Goal(5, GoalType.SHORT, Alliance.NEUTRAL, x=4.0,  y=-2.0, quadrant=1, awp_side=Alliance.BLUE),
-        Goal(6, GoalType.SHORT, Alliance.NEUTRAL, x=2.0,  y=-4.0, quadrant=2, awp_side=Alliance.RED),
-        Goal(7, GoalType.SHORT, Alliance.NEUTRAL, x=-4.0, y=2.0,  quadrant=3, awp_side=Alliance.RED),
-        # Tall goal at center, in midfield
-        Goal(8, GoalType.TALL,  Alliance.NEUTRAL, x=0.0,  y=0.0,  quadrant=0,
-             in_midfield=True, awp_side=Alliance.NEUTRAL),
-    ]
-    # Toggles at wall midpoints — one per diagonal quadrant
-    toggles = [
-        Toggle(0, quadrant=0, state=ToggleState.YELLOW, x=0.0,  y=6.0),    # TOP wall
-        Toggle(1, quadrant=1, state=ToggleState.YELLOW, x=6.0,  y=0.0),    # RIGHT wall
-        Toggle(2, quadrant=2, state=ToggleState.YELLOW, x=0.0,  y=-6.0),   # BOTTOM wall
-        Toggle(3, quadrant=3, state=ToggleState.YELLOW, x=-6.0, y=0.0),    # LEFT wall
-    ]
-    # Robots — 2 per alliance, starting on their alliance station wall.
-    # Red alliance station is the left wall; blue is the right wall.
-    robots = [
-        Robot(id=0, alliance=Alliance.RED,  x=-5.5, y=2.0,  theta=0.0),
-        Robot(id=1, alliance=Alliance.RED,  x=-5.5, y=-2.0, theta=0.0),
-        Robot(id=2, alliance=Alliance.BLUE, x=5.5,  y=2.0,  theta=math.pi),
-        Robot(id=3, alliance=Alliance.BLUE, x=5.5,  y=-2.0, theta=math.pi),
-    ]
-    world = World(goals=goals, toggles=toggles, robots=robots, phase=Phase.AUTO)
-
-    # ---- User-specified starting configuration ------------------------------
-    # The field starts with the following pin/cup setups. Pins and cups are
-    # ALWAYS separate objects in the data model so they can be pushed and
-    # picked up independently — when a pin sits at the same (x, y) as a cup,
-    # the renderer draws the pin on top to give a "pin nested in cup" look.
-    #
-    #   Midfield (NOT mirrored — listed once each):
-    #     red-blue pin BLUE-up on clear-up cup at (2, 0) and (0, 2)
-    #     red-blue pin RED-up  on clear-up cup at (-2, 0) and (0, -2)
-    #
-    #   Per cardinal quadrant (4-fold mirror; top-right is the spec position):
-    #     y=x diagonal (cup-pin stays):
-    #       yellow/yellow pin on clear-up cup at (2, 2) and (4, 4) [+ mirrors]
-    #     y=-x diagonal (the autonomous line separating {Q0,Q1} from {Q2,Q3}):
-    #       CLEAR-UP cup SURROUNDED by 4 pins at offset 0.7 ft:
-    #         blue/yellow pins on +y (top) and +x (right) sides
-    #         red/yellow  pins on -y (bottom) and -x (left) sides
-    #     Wall opaque-up pin-on-cups at (2, 6) and (6, 2) with 2 flanking cups.
-    pin_id = 100
-    cup_id = 100
-
-    def _add_pin_on_cup(x: float, y: float,
-                        top: PinColor, bot: PinColor,
-                        clear_face_up: bool) -> None:
-        nonlocal pin_id, cup_id
-        # Cup first (will draw underneath), then pin nested at same position.
-        # NOTE: they are independent objects — the pickup logic grabs one at a
-        # time and the push logic shoves them as separate physics circles.
-        world.cups.append(Cup(id=cup_id, x=x, y=y,
-                               clear_face_up=clear_face_up))
-        cup_id += 1
-        world.pins.append(Pin(id=pin_id,
-                              half_a_color=top, half_b_color=bot,
-                              x=x, y=y))
-        pin_id += 1
-
-    def _add_empty_cup(x: float, y: float, clear_face_up: bool) -> None:
-        nonlocal cup_id
-        world.cups.append(Cup(id=cup_id, x=x, y=y,
-                               clear_face_up=clear_face_up))
-        cup_id += 1
-
-    def _add_loose_pin(x: float, y: float,
-                        top: PinColor, bot: PinColor) -> None:
-        nonlocal pin_id
-        world.pins.append(Pin(id=pin_id,
-                              half_a_color=top, half_b_color=bot,
-                              x=x, y=y))
-        pin_id += 1
-
-    # -- Midfield pin-on-cups (single instances per the spec) --
-    _add_pin_on_cup( 2.0, 0.0, PinColor.BLUE, PinColor.RED, clear_face_up=True)
-    _add_pin_on_cup( 0.0, 2.0, PinColor.BLUE, PinColor.RED, clear_face_up=True)
-    _add_pin_on_cup(-2.0, 0.0, PinColor.RED, PinColor.BLUE, clear_face_up=True)
-    _add_pin_on_cup( 0.0,-2.0, PinColor.RED, PinColor.BLUE, clear_face_up=True)
-
-    # -- 4-fold cardinal-quadrant mirror helper --
-    def _mirror4(x: float, y: float):
-        return [(x, y), (-x, y), (-x, -y), (x, -y)]
-
-    # Yellow/yellow pin on CLEAR-up cup — but ONLY at y=x diagonal positions.
-    # The y=-x diagonal mirrors are handled below with the surrounded-cup config.
-    for px, py in _mirror4(2.0, 2.0) + _mirror4(4.0, 4.0):
-        if abs(px - py) < 1e-6:           # on y = x  → keep pin-on-cup
-            _add_pin_on_cup(px, py,
-                            PinColor.YELLOW, PinColor.YELLOW,
-                            clear_face_up=True)
-
-    # y = -x diagonal: empty CLEAR-up cup surrounded by 4 pins (offset 0.7 ft).
-    # Blue/yellow pins on +y (top) and +x (right); red/yellow on -y and -x.
-    _SURROUND_OFFSET = 0.7
-    for px, py in _mirror4(2.0, 2.0) + _mirror4(4.0, 4.0):
-        if abs(px + py) >= 1e-6:           # skip y = x (handled above)
-            continue
-        _add_empty_cup(px, py, clear_face_up=True)
-        # Top (+y) — blue/yellow, blue-up
-        _add_loose_pin(px, py + _SURROUND_OFFSET,
-                        PinColor.BLUE, PinColor.YELLOW)
-        # Right (+x) — blue/yellow, blue-up
-        _add_loose_pin(px + _SURROUND_OFFSET, py,
-                        PinColor.BLUE, PinColor.YELLOW)
-        # Bottom (-y) — red/yellow, red-up
-        _add_loose_pin(px, py - _SURROUND_OFFSET,
-                        PinColor.RED, PinColor.YELLOW)
-        # Left (-x) — red/yellow, red-up
-        _add_loose_pin(px - _SURROUND_OFFSET, py,
-                        PinColor.RED, PinColor.YELLOW)
-
-    # Yellow/yellow pin on OPAQUE-up cup at the wall positions, with two
-    # empty opaque-up cups flanking each along the wall it sits on.
-    for px, py in _mirror4(2.0, 6.0):
-        _add_pin_on_cup(px, py,
-                        PinColor.YELLOW, PinColor.YELLOW,
-                        clear_face_up=False)
-        _add_empty_cup(px - 1.0, py, clear_face_up=False)
-        _add_empty_cup(px + 1.0, py, clear_face_up=False)
-    for px, py in _mirror4(6.0, 2.0):
-        _add_pin_on_cup(px, py,
-                        PinColor.YELLOW, PinColor.YELLOW,
-                        clear_face_up=False)
-        _add_empty_cup(px, py - 1.0, clear_face_up=False)
-        _add_empty_cup(px, py + 1.0, clear_face_up=False)
-
-    return world
-
-
-def make_demo_world() -> World:
-    """113-pt strategy floor (red alliance). Built on top of make_empty_world
-    but clears the starting yellow pin from G6/G7 so build_stack can construct
-    a clean SC2 chain there. G4/G5 keep their starting yellow pins (they
-    don't get a demo stack)."""
-    w = make_empty_world()
-    # Remove the starting yellow pin from G6/G7 (G1/G0 don't have one)
-    w.pins = [p for p in w.pins
-              if not (p.in_goal in (6, 7) and 200 <= p.id < 204)]
-
-    w.phase = Phase.ENDED
-    w.robots[0].in_midfield = True
-    w.robots[1].in_midfield = True
-    w.robots[0].x, w.robots[0].y = 0.5, 0.5
-    w.robots[1].x, w.robots[1].y = -0.5, -0.5
-
-    build_stack(w, 0, top_color=PinColor.RED, bottom_color=PinColor.YELLOW,
-                n_pins=3, cups_clear_face_up=False)
-    build_stack(w, 6, top_color=PinColor.RED, bottom_color=PinColor.YELLOW,
-                n_pins=2, cups_clear_face_up=False)
-    build_stack(w, 7, top_color=PinColor.RED, bottom_color=PinColor.YELLOW,
-                n_pins=2, cups_clear_face_up=False)
-    build_stack(w, 1, top_color=PinColor.RED, bottom_color=PinColor.YELLOW,
-                n_pins=10, cups_clear_face_up=False)
-    return w
+from core.worlds import make_empty_world, make_demo_world      # noqa: E402
 
 
 def make_toggle_duel_world() -> World:
-    """Minimal world for the AI-vs-AI toggle duel mode.
-
-    Just one toggle on the right wall (Q1) and two robots — one red (R0) and
-    one blue (R2) — placed on opposite sides of it. No pins, no cups, no
-    other toggles. Both bots get phase=POST_LOADS so they immediately race
-    to flip the toggle to their alliance color (and keep flipping it back as
-    the opponent counters)."""
-    # Keep the full goal set so any incidental code that iterates goals
-    # doesn't crash; the bots don't visit them in POST_LOADS phase anyway.
-    goals = [
-        Goal(0, GoalType.ALLIANCE, Alliance.RED,  x=-4.0, y=-2.0, quadrant=3, awp_side=Alliance.RED),
-        Goal(1, GoalType.ALLIANCE, Alliance.RED,  x=-2.0, y=-4.0, quadrant=2, awp_side=Alliance.RED),
-        Goal(2, GoalType.ALLIANCE, Alliance.BLUE, x=2.0,  y=4.0,  quadrant=0, awp_side=Alliance.BLUE),
-        Goal(3, GoalType.ALLIANCE, Alliance.BLUE, x=4.0,  y=2.0,  quadrant=1, awp_side=Alliance.BLUE),
-        Goal(4, GoalType.SHORT, Alliance.NEUTRAL, x=-2.0, y=4.0,  quadrant=0, awp_side=Alliance.BLUE),
-        Goal(5, GoalType.SHORT, Alliance.NEUTRAL, x=4.0,  y=-2.0, quadrant=1, awp_side=Alliance.BLUE),
-        Goal(6, GoalType.SHORT, Alliance.NEUTRAL, x=2.0,  y=-4.0, quadrant=2, awp_side=Alliance.RED),
-        Goal(7, GoalType.SHORT, Alliance.NEUTRAL, x=-4.0, y=2.0,  quadrant=3, awp_side=Alliance.RED),
-        Goal(8, GoalType.TALL,  Alliance.NEUTRAL, x=0.0,  y=0.0,  quadrant=0,
-             in_midfield=True, awp_side=Alliance.NEUTRAL),
-    ]
-    # Only the Q1 (right-wall) toggle exists in this world so the bots have
-    # exactly one shared target.
-    toggles = [
-        Toggle(1, quadrant=1, state=ToggleState.YELLOW, x=6.0, y=0.0),
-    ]
-    robots = [
-        # R0 = red bot, starts north of the toggle
-        Robot(id=0, alliance=Alliance.RED,  x=2.0, y= 2.0, theta=0.0),
-        # R2 = blue bot, starts south of the toggle
-        Robot(id=2, alliance=Alliance.BLUE, x=2.0, y=-2.0, theta=0.0),
-    ]
-    return World(goals=goals, toggles=toggles, robots=robots,
-                  phase=Phase.DRIVER)
-
-
-# Viewport for the toggle-duel zoom. Showing the FULL right half of the
-# field (x ∈ [-1, 7] effectively clamped at field edges, y ∈ [-4, 4]) so
-# the bots have enough vertical room to separate during pushing matches
-# instead of pile-up jamming against a tight clamp boundary. Square.
-DUEL_VIEWPORT = (-1.0, 7.0, -4.0, 4.0)
+    """Duel scenario — the REAL field (full pin/cup/toggle/goal setup from
+    `make_empty_world`) with the match clock already running. All four
+    robots are bots in POST_LOADS phase, so as soon as you enter duel mode
+    the field gets contested for ALL FOUR toggles, not just one. This
+    matches what the trained neural-network bot sees during training, and
+    matches what real VEX play looks like."""
+    w = make_empty_world()
+    w.phase = Phase.DRIVER
+    return w
 
 
 # -- App ----------------------------------------------------------------------
@@ -402,15 +201,11 @@ class App:
     # -- Layout recompute on resize / fullscreen toggle --
 
     def _recompute_layout(self) -> None:
-        import dataclasses
         self.win_w, self.win_h = self.screen.get_size()
         self.layout = WindowLayout.compute(self.win_w, self.win_h)
-        # If we're in duel mode, replace the field viewport with the zoomed
-        # quadrant range so the layout shows ONLY that area at higher pixels.
-        if self.duel_mode:
-            xmin, xmax, ymin, ymax = DUEL_VIEWPORT
-            zoomed = self.layout.field.with_viewport(xmin, xmax, ymin, ymax)
-            self.layout = dataclasses.replace(self.layout, field=zoomed)
+        # Duel mode no longer zooms — the full field is the game, and the
+        # bots fight for ALL four toggles on it, not just one. Matches the
+        # training environment exactly.
 
     # -- Main loop --
 
@@ -478,8 +273,6 @@ class App:
                 bot.update(dt)
             # After all motion: push apart overlapping robots (player shoves bots)
             self._resolve_robot_overlaps()
-            # Duel mode: penned arena — keep robots inside the visible quadrant.
-            self._clamp_robots_to_duel_viewport()
             # Then displace any loose pins/cups that the robots are touching
             self._push_loose_objects()
             # Per-frame: enforce SC4 (toggle UNSET while any robot touches it)
@@ -778,19 +571,6 @@ class App:
         step (which splits the push 50/50), so the bot's per-step check
         only blocks on STATIC obstacles (goals)."""
         return lambda x, y: self._collides_at(robot_id, x, y, include_robots=False)
-
-    def _clamp_robots_to_duel_viewport(self) -> None:
-        """In duel mode the field renders zoomed to the Q1 quadrant, so robots
-        that drift outside that viewport just vanish off-screen. Clamp every
-        robot's position to the visible rectangle (with one chassis-radius of
-        margin so the body itself stays on-screen)."""
-        if not self.duel_mode:
-            return
-        xmin, xmax, ymin, ymax = DUEL_VIEWPORT
-        m = ROBOT_COLLISION_RADIUS_FT
-        for r in self.world.robots:
-            r.x = max(xmin + m, min(xmax - m, r.x))
-            r.y = max(ymin + m, min(ymax - m, r.y))
 
     def _resolve_robot_overlaps(self) -> None:
         """After all motion this frame, push any overlapping robots apart

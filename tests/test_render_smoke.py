@@ -189,26 +189,29 @@ def test_stack_in_goal_walks_full_chain():
     assert n_cups == 9
 
 
-def test_toggle_duel_world_is_minimal():
-    """make_toggle_duel_world() returns a stripped-down world for the AI duel:
-    no pins, no cups, only 1 toggle (Q1), only 2 robots (one red, one blue)."""
+def test_toggle_duel_world_uses_real_field():
+    """make_toggle_duel_world() now returns the FULL real-game field (same
+    as make_empty_world) with the match clock already started. The duel
+    isn't a stripped toy anymore — it's the actual game in fight mode."""
     from render.pygame_view import make_toggle_duel_world
-    from core.state import Alliance
+    from core.state import Alliance, Phase
 
     w = make_toggle_duel_world()
-    assert len(w.pins) == 0
-    assert len(w.cups) == 0
-    assert len(w.toggles) == 1
-    assert w.toggles[0].quadrant == 1
-    assert len(w.robots) == 2
+    assert w.phase == Phase.DRIVER
+    assert len(w.toggles) == 4                # all four wall toggles
+    assert len(w.robots) == 4                 # 2v2
+    assert len(w.pins) > 30                   # full pin loadout from BoM
+    assert len(w.cups) > 30                   # cup loadout too
     alliances = sorted(r.alliance for r in w.robots)
-    assert alliances == [Alliance.BLUE, Alliance.RED]
+    from core.state import Alliance as _A
+    assert alliances.count(_A.RED) == 2
+    assert alliances.count(_A.BLUE) == 2
 
 
-def test_duel_bots_flip_toggle_eventually():
-    """Run the duel: both bots in POST_LOADS racing for the single Q1 toggle.
-    Over ~25 simulated seconds the toggle should change state at least twice
-    (each bot flipping it back and forth as they trade contact)."""
+def test_duel_bots_flip_toggles_eventually():
+    """Run the duel: all four bots in POST_LOADS racing for all four toggles.
+    Over ~25 simulated seconds at least one toggle should end up not in its
+    YELLOW initial state — each alliance fights to claim them."""
     import os
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     import pygame
@@ -221,30 +224,27 @@ def test_duel_bots_flip_toggle_eventually():
     app = App()
     app._enter_duel_mode()
     assert app.duel_mode is True
-    assert len(app.bots) == 2
-    # Both bots should be in POST_LOADS already
+    assert len(app.bots) == 4                 # 2v2 full game
     for b in app.bots:
         assert b.phase == "POST_LOADS"
-    tog = app.world.toggles[0]
-    initial_state = tog.resting_state    # YELLOW
 
-    seen_states: set = {initial_state}
     dt = 0.05
+    seen_alliance_color = False
     for _ in range(int(25.0 / dt)):
         for bot in app.bots:
             bot.update(dt)
         app._resolve_robot_overlaps()
         app._update_toggle_contact()
-        seen_states.add(tog.resting_state)
-
-    # The toggle should have been driven AWAY from YELLOW at least once —
-    # ideally to both RED and BLUE as the bots trade flips.
-    assert seen_states - {ToggleState.YELLOW, ToggleState.UNSET} != set(), (
-        f"Toggle never reached an alliance color; seen={seen_states}")
+        for tog in app.world.toggles:
+            if tog.resting_state in (ToggleState.RED, ToggleState.BLUE):
+                seen_alliance_color = True
+                break
+        if seen_alliance_color:
+            break
+    assert seen_alliance_color, "No toggle ever reached an alliance color"
 
     app._exit_duel_mode()
     assert app.duel_mode is False
-    assert len(app.world.pins) > 0   # back to the full populated field
 
     pygame.quit()
 

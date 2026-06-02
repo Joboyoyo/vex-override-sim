@@ -56,27 +56,21 @@ DISCRETE_ACTIONS = np.array([
 
 
 def _make_duel_world() -> World:
-    """Pygame-free clone of `render.pygame_view.make_toggle_duel_world`."""
-    goals = [
-        Goal(0, GoalType.ALLIANCE, Alliance.RED,  x=-4.0, y=-2.0, quadrant=3, awp_side=Alliance.RED),
-        Goal(1, GoalType.ALLIANCE, Alliance.RED,  x=-2.0, y=-4.0, quadrant=2, awp_side=Alliance.RED),
-        Goal(2, GoalType.ALLIANCE, Alliance.BLUE, x=2.0,  y=4.0,  quadrant=0, awp_side=Alliance.BLUE),
-        Goal(3, GoalType.ALLIANCE, Alliance.BLUE, x=4.0,  y=2.0,  quadrant=1, awp_side=Alliance.BLUE),
-        Goal(4, GoalType.SHORT, Alliance.NEUTRAL, x=-2.0, y=4.0,  quadrant=0, awp_side=Alliance.BLUE),
-        Goal(5, GoalType.SHORT, Alliance.NEUTRAL, x=4.0,  y=-2.0, quadrant=1, awp_side=Alliance.BLUE),
-        Goal(6, GoalType.SHORT, Alliance.NEUTRAL, x=2.0,  y=-4.0, quadrant=2, awp_side=Alliance.RED),
-        Goal(7, GoalType.SHORT, Alliance.NEUTRAL, x=-4.0, y=2.0,  quadrant=3, awp_side=Alliance.RED),
-        Goal(8, GoalType.TALL,  Alliance.NEUTRAL, x=0.0,  y=0.0,  quadrant=0,
-             in_midfield=True, awp_side=Alliance.NEUTRAL),
-    ]
-    toggles = [
-        Toggle(1, quadrant=1, state=ToggleState.YELLOW, x=6.0, y=0.0),
-    ]
-    robots = [
-        Robot(id=0, alliance=Alliance.RED,  x=2.0, y= 2.0, theta=0.0),
-        Robot(id=2, alliance=Alliance.BLUE, x=2.0, y=-2.0, theta=0.0),
-    ]
-    return World(goals=goals, toggles=toggles, robots=robots, phase=Phase.DRIVER)
+    """The REAL game's starting field (pulled from core.worlds), with the
+    match clock already running. Training thus happens on exactly the same
+    map the live game displays — no toy scenarios with stripped goals or a
+    single toggle.
+
+    For training simplicity we keep just R0 (red, the agent) and R2 (blue,
+    the scripted opponent) — partner bots would only confuse the reward
+    attribution. Pin/cup positions and all four toggles are intact."""
+    from core.worlds import make_empty_world
+    w = make_empty_world()
+    w.phase = Phase.DRIVER
+    # Drop the partner bots (R1, R3); env trains a single agent vs a single
+    # scripted opponent. Keep R0 (agent) and R2 (opponent).
+    w.robots = [r for r in w.robots if r.id in (0, 2)]
+    return w
 
 
 def _toggle_aabb(t: Toggle) -> tuple[float, float, float, float]:
@@ -119,7 +113,16 @@ def make_observation(world: World, agent_robot: Robot,
     """
     if not world.toggles:
         raise ValueError("observation requires at least one toggle")
-    t = world.toggles[0]
+    # PRIMARY toggle: the closest one whose resting_state isn't already ours.
+    # (Fall back to overall closest if we already own them all.) This
+    # generalizes the obs from "fight for the single Q1 toggle" to
+    # "fight for whichever toggle is the current opportunity."
+    my_color = (ToggleState.RED if agent_alliance == Alliance.RED
+                 else ToggleState.BLUE)
+    non_ours = [tt for tt in world.toggles if tt.resting_state != my_color]
+    pool = non_ours if non_ours else world.toggles
+    t = min(pool, key=lambda tt: math.hypot(tt.x - agent_robot.x,
+                                              tt.y - agent_robot.y))
     opp = next((r for r in world.robots if r.id != agent_robot.id),
                 agent_robot)   # if no opp, mirror own (degenerate)
     cos_t = math.cos(agent_robot.theta)
@@ -255,21 +258,25 @@ class ToggleDuelEnv:
             r.theta += self._rng.uniform(-0.2, 0.2)
         # Pick which robot the agent drives
         if self.agent_alliance == Alliance.RED:
-            self.agent_robot = self.world.robots[0]
-            self.opp_robot   = self.world.robots[1]
+            self.agent_robot = next(r for r in self.world.robots
+                                      if r.alliance == Alliance.RED)
+            self.opp_robot   = next(r for r in self.world.robots
+                                      if r.alliance == Alliance.BLUE)
         else:
-            self.agent_robot = self.world.robots[1]
-            self.opp_robot   = self.world.robots[0]
+            self.agent_robot = next(r for r in self.world.robots
+                                      if r.alliance == Alliance.BLUE)
+            self.opp_robot   = next(r for r in self.world.robots
+                                      if r.alliance == Alliance.RED)
         # Opponent: existing scripted bot, immediately in POST_LOADS phase
         self.opp_bot = ScriptedBot(robot_id=self.opp_robot.id, world=self.world)
         self.opp_bot.phase = "POST_LOADS"
         self.opp_bot.enabled = self.opponent_enabled
-        # Toggle reference
-        self.toggle = self.world.toggles[0]
         self._wl = 0.0
         self._wr = 0.0
         self._step = 0
-        self._prev_resting = self.toggle.resting_state
+        # Track per-toggle previous state so we can give a flip bonus when
+        # ANY toggle changes from non-ours to ours (not just one specific one).
+        self._prev_resting = {t.id: t.resting_state for t in self.world.toggles}
         return self._observation()
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, dict]:
@@ -305,35 +312,39 @@ class ToggleDuelEnv:
         # ----- SC4 toggle contact / agent's own back-sensor flip check
         self._update_toggle_state()
 
-        # ----- reward
+        # ----- reward (multi-toggle: real game has 4)
         my_color = (ToggleState.RED if self.agent_alliance == Alliance.RED
                      else ToggleState.BLUE)
         opp_color = (ToggleState.BLUE if my_color == ToggleState.RED
                       else ToggleState.RED)
         reward = 0.0
-        if self.toggle.resting_state == my_color:
-            reward += 1.0
-        elif self.toggle.resting_state == opp_color:
-            reward -= 0.2          # small penalty when opponent holds it
-        # Big bonus on a fresh flip into our color
-        if (self.toggle.resting_state == my_color
-                and self._prev_resting != my_color):
-            reward += 5.0
-        self._prev_resting = self.toggle.resting_state
+        ours_count = 0
+        for tog in self.world.toggles:
+            if tog.resting_state == my_color:
+                reward += 0.25     # +1/sec total max if we own all 4
+                ours_count += 1
+            elif tog.resting_state == opp_color:
+                reward -= 0.05     # small penalty per toggle the opp owns
+            # Fresh flip bonus
+            prev = self._prev_resting.get(tog.id)
+            if tog.resting_state == my_color and prev != my_color:
+                reward += 2.0
+            self._prev_resting[tog.id] = tog.resting_state
 
-        # Optional shaping — dense gradient for "approach toggle, square up".
-        # Small magnitudes so the +1 ownership signal still dominates.
+        # Optional shaping — keeps the gradient dense by rewarding
+        # approach + alignment toward the PRIMARY toggle (closest non-ours).
         if self.use_shaping:
-            t = self.toggle
+            non_ours = [t for t in self.world.toggles
+                         if t.resting_state != my_color]
+            pool = non_ours if non_ours else self.world.toggles
             r = self.agent_robot
-            # 1. Closeness — peaks at ~0.05/step when the bot is 1 ft away
-            dx = t.x - r.x
-            dy = t.y - r.y
+            primary = min(pool, key=lambda tt: math.hypot(tt.x - r.x,
+                                                             tt.y - r.y))
+            dx = primary.x - r.x
+            dy = primary.y - r.y
             dist = math.hypot(dx, dy)
             reward += 0.05 * math.exp(-((dist - 1.2) ** 2) / 0.6)
-            # 2. Back-alignment bonus — peaks at ~0.05/step when back direction
-            # matches the wall's outward normal.
-            nx, ny = _toggle_outward_normal(t)
+            nx, ny = _toggle_outward_normal(primary)
             bx = -math.cos(r.theta)
             by = -math.sin(r.theta)
             alignment = bx * nx + by * ny
@@ -341,8 +352,8 @@ class ToggleDuelEnv:
 
         self._step += 1
         done = self._step >= self.episode_steps
-        info = {"resting_state": self.toggle.resting_state.value,
-                "live_state":    self.toggle.state.value}
+        info = {"ours_count": ours_count,
+                "n_toggles":  len(self.world.toggles)}
         return self._observation(), reward, done, info
 
     # ---------- helpers ----------
@@ -381,21 +392,21 @@ class ToggleDuelEnv:
                 b.y = max(-bound, min(bound, b.y + uy * half))
 
     def _update_toggle_state(self) -> None:
-        """Agent-side toggle flip + SC4 contact resolution.
+        """Agent-side toggle flip + SC4 contact resolution — for ALL toggles
+        (the real field has 4, not 1). For each toggle, if the agent's back
+        sensor is overlapping it, set its resting_state to the agent's
+        color. Then SC4: state=UNSET if any robot is in contact, else
+        resting_state.
 
-        The agent doesn't run the scripted bot logic — it learns. So if the
-        agent's back sensor is on the toggle this step, we set the toggle's
-        resting_state to the agent's alliance color (matching what the bot
-        would do). Then SC4: while ANY robot is in contact, state=UNSET."""
-        t = self.toggle
+        Original docstring kept below for context."""
         my_color = (ToggleState.RED if self.agent_alliance == Alliance.RED
                      else ToggleState.BLUE)
-        # Agent flip (scripted bots set their own toggles in their update step).
-        if _back_sensor_overlaps(self.agent_robot, t):
-            t.resting_state = my_color
-        # SC4: state = UNSET if any robot's back is on the toggle; else resting.
-        any_contact = any(_back_sensor_overlaps(r, t) for r in self.world.robots)
-        t.state = ToggleState.UNSET if any_contact else t.resting_state
+        for t in self.world.toggles:
+            if _back_sensor_overlaps(self.agent_robot, t):
+                t.resting_state = my_color
+            any_contact = any(_back_sensor_overlaps(r, t)
+                              for r in self.world.robots)
+            t.state = ToggleState.UNSET if any_contact else t.resting_state
 
 
 __all__ = ["ToggleDuelEnv", "DISCRETE_ACTIONS"]
