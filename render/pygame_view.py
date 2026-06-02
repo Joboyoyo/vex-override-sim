@@ -220,6 +220,15 @@ class App:
     def run(self) -> None:
         running = True
         last_t = pygame.time.get_ticks() / 1000.0
+        # The RL env (and the trained NN policy) was trained with a FIXED
+        # simulation dt of 0.05 s (20 Hz). The display runs at 60 FPS for
+        # smoothness, but if we also stepped physics at 60 Hz the wheel-
+        # ramping and the NN's per-step decisions would behave 3× differently
+        # from training. So we accumulate real time and only advance physics
+        # in 0.05-second chunks — display stays smooth, simulation stays
+        # consistent with training.
+        SIM_DT = 0.05
+        sim_accumulator = 0.0
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -268,25 +277,26 @@ class App:
                                       if j.get_instance_id() != event.instance_id]
                     self.status = "Controller disconnected."
 
-            # Tick robot kinematics from held keys
+            # Tick simulation in FIXED 0.05-second steps. Display still
+            # renders at 60 FPS, but we may run 0, 1, 2, or 3 physics steps
+            # per frame depending on real time elapsed since last frame —
+            # this keeps the bot policy operating at the same dt it trained on.
             now_t = pygame.time.get_ticks() / 1000.0
-            dt = max(0.0, min(0.05, now_t - last_t))
+            real_dt = max(0.0, min(0.25, now_t - last_t))   # cap at 0.25s
             last_t = now_t
+            sim_accumulator += real_dt
             self._poll_analog_trigger()
-            # Player drives R0 — except in duel mode, where R0 is also an AI.
-            if not self.duel_mode:
-                self._update_robot_kinematics(dt)
-            # Tick AI bots
-            for bot in self.bots:
-                bot.update(dt)
-            # After all motion: push apart overlapping robots (player shoves bots)
-            self._resolve_robot_overlaps()
-            # Then displace any loose pins/cups that the robots are touching
-            self._push_loose_objects()
-            # Per-frame: enforce SC4 (toggle UNSET while any robot touches it)
-            self._update_toggle_contact()
-            # Per-frame: tick the match clock during the driver period
-            self._tick_match_clock(dt)
+            while sim_accumulator >= SIM_DT:
+                # Player drives R0 — except in duel mode, where R0 is also AI.
+                if not self.duel_mode:
+                    self._update_robot_kinematics(SIM_DT)
+                for bot in self.bots:
+                    bot.update(SIM_DT)
+                self._resolve_robot_overlaps()
+                self._push_loose_objects()
+                self._update_toggle_contact()
+                self._tick_match_clock(SIM_DT)
+                sim_accumulator -= SIM_DT
 
             self._update_hover(pygame.mouse.get_pos())
             self._render()
