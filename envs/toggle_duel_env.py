@@ -260,11 +260,20 @@ class ToggleDuelEnv:
         if seed is not None:
             self._rng = random.Random(seed)
         self.world = _make_duel_world()
-        # Randomize starting positions a touch so the agent doesn't overfit.
+        # Place both robots in the right-half of the field at random poses,
+        # roughly equidistant from the Q1 toggle so neither side gets a
+        # huge positional advantage. Without this the bot starting near
+        # (-5.5, 2.0) can never beat the one starting near (5.5, 2.0) to
+        # the toggle on the right wall.
         for r in self.world.robots:
-            r.x += self._rng.uniform(-0.3, 0.3)
-            r.y += self._rng.uniform(-0.3, 0.3)
-            r.theta += self._rng.uniform(-0.2, 0.2)
+            r.x = self._rng.uniform(0.0, 4.5)
+            r.y = self._rng.uniform(-3.0, 3.0)
+            r.theta = self._rng.uniform(-math.pi, math.pi)
+        # Make sure they don't start exactly on top of each other
+        if math.hypot(self.world.robots[0].x - self.world.robots[1].x,
+                       self.world.robots[0].y - self.world.robots[1].y) < 1.5:
+            self.world.robots[1].x = self.world.robots[0].x + self._rng.choice([-2.0, 2.0])
+            self.world.robots[1].y = self.world.robots[0].y + self._rng.choice([-2.0, 2.0])
         # Pick which robot the agent drives
         if self.agent_alliance == Alliance.RED:
             self.agent_robot = next(r for r in self.world.robots

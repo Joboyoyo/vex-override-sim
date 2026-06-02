@@ -104,15 +104,16 @@ def make_toggle_duel_world() -> World:
     combat (pushing, blocking, contested back-ins) instead of degenerating
     into "race to the closest toggle, never interact."
 
-    Also reduced to 1v1 (R0 red, R2 blue). Partner bots in a 4-toggle
-    world tended to spread out and cycle; with one toggle and two robots,
-    every encounter matters."""
+    Reduced to 1v1 (R0 red, R2 blue). Both start roughly equidistant from
+    Q1 (at (6, 0)) so it's a fair race + contest — no positional advantage
+    for either side."""
     w = make_empty_world()
     w.phase = Phase.DRIVER
-    # Keep only Q1
     w.toggles = [t for t in w.toggles if t.quadrant == 1]
-    # 1v1
     w.robots = [r for r in w.robots if r.id in (0, 2)]
+    # Equidistant fair starts — both ~4.5 ft from the Q1 toggle.
+    w.robots[0].x, w.robots[0].y, w.robots[0].theta = 1.5,  2.0, 0.0
+    w.robots[1].x, w.robots[1].y, w.robots[1].theta = 1.5, -2.0, 0.0
     return w
 
 
