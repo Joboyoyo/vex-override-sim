@@ -34,7 +34,7 @@ from ai.scripted_bot import WHEEL_MAX_SPEED
 from core.state import Alliance, Phase, Robot, Toggle, ToggleState, World
 from envs.toggle_duel_env import (
     DISCRETE_ACTIONS, ToggleDuelEnv, _back_sensor_overlaps,
-    _make_duel_world, _toggle_outward_normal,
+    _make_duel_world, _toggle_outward_normal, make_observation,
 )
 
 
@@ -86,29 +86,9 @@ def _nearest_discrete_action(v_left: float, v_right: float,
 
 def _make_obs(world: World, agent_robot: Robot, agent_alliance: Alliance,
               wl: float, wr: float) -> np.ndarray:
-    """Same 14-d obs that ToggleDuelEnv._observation produces."""
-    opp = next(r for r in world.robots if r.id != agent_robot.id)
-    t = world.toggles[0]
-    my_color = (ToggleState.RED if agent_alliance == Alliance.RED
-                 else ToggleState.BLUE)
-    opp_color = (ToggleState.BLUE if my_color == ToggleState.RED
-                  else ToggleState.RED)
-    if t.resting_state == my_color:
-        rs = 1.0
-    elif t.resting_state == opp_color:
-        rs = -1.0
-    else:
-        rs = 0.0
-    live_unset = 1.0 if t.state == ToggleState.UNSET else 0.0
-    return np.array([
-        agent_robot.x / 6.0, agent_robot.y / 6.0,
-        math.cos(agent_robot.theta), math.sin(agent_robot.theta),
-        wl / WHEEL_MAX_SPEED, wr / WHEEL_MAX_SPEED,
-        opp.x / 6.0, opp.y / 6.0,
-        math.cos(opp.theta), math.sin(opp.theta),
-        t.x / 6.0, t.y / 6.0,
-        rs, live_unset,
-    ], dtype=np.float32)
+    """Delegate to the shared observation builder so the BC dataset always
+    matches the env's layout (currently 19-d)."""
+    return make_observation(world, agent_robot, agent_alliance, wl, wr)
 
 
 def _resolve_overlaps(world: World) -> None:

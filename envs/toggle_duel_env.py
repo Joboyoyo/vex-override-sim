@@ -93,6 +93,83 @@ def _toggle_outward_normal(t: Toggle) -> tuple[float, float]:
     return (0.0, 1.0 if t.y > 0 else -1.0)
 
 
+def make_observation(world: World, agent_robot: Robot,
+                     agent_alliance: Alliance,
+                     agent_wl: float, agent_wr: float) -> np.ndarray:
+    """Shared 19-d observation used by both the training env and the live
+    NNBot adapter. Anything that consumes the policy MUST go through this so
+    the network always sees the same layout it was trained on.
+
+    Indices (all roughly in [-1, 1]):
+       0-1   own.x, own.y         (÷6, world frame)
+       2-3   own.cosθ, own.sinθ
+       4-5   own wheel velocities (÷WHEEL_MAX_SPEED)
+       6-7   toggle in agent's BODY frame (÷12): forward, side
+                                — this is what the bot's controller cares
+                                  about; saves the net from learning a rotation
+       8-9   opp in agent's body frame (÷12): forward, side
+      10     wall-alignment: back direction · outward wall normal of the
+                              nearest toggle (≈ 1 when squared up, ≈ -1 when
+                              facing the wall the wrong way)
+      11-12  toggle world position (÷6) — useful for goal-localization too
+      13-14  opp world position (÷6)
+      15-16  opp.cosθ, opp.sinθ
+      17     resting_state signed: +1 ours, -1 opp's, 0 yellow
+      18     live state UNSET flag
+    """
+    if not world.toggles:
+        raise ValueError("observation requires at least one toggle")
+    t = world.toggles[0]
+    opp = next((r for r in world.robots if r.id != agent_robot.id),
+                agent_robot)   # if no opp, mirror own (degenerate)
+    cos_t = math.cos(agent_robot.theta)
+    sin_t = math.sin(agent_robot.theta)
+    # Toggle in body frame
+    tdx_w = t.x - agent_robot.x
+    tdy_w = t.y - agent_robot.y
+    tog_fwd  =  tdx_w * cos_t + tdy_w * sin_t
+    tog_side = -tdx_w * sin_t + tdy_w * cos_t
+    # Opponent in body frame
+    odx_w = opp.x - agent_robot.x
+    ody_w = opp.y - agent_robot.y
+    opp_fwd  =  odx_w * cos_t + ody_w * sin_t
+    opp_side = -odx_w * sin_t + ody_w * cos_t
+    # Wall-alignment of the back direction
+    if abs(t.x) > abs(t.y):
+        nx = 1.0 if t.x > 0 else -1.0
+        ny = 0.0
+    else:
+        nx = 0.0
+        ny = 1.0 if t.y > 0 else -1.0
+    bx = -cos_t
+    by = -sin_t
+    wall_align = bx * nx + by * ny
+    # Toggle state
+    my_color = (ToggleState.RED if agent_alliance == Alliance.RED
+                 else ToggleState.BLUE)
+    opp_color = (ToggleState.BLUE if my_color == ToggleState.RED
+                  else ToggleState.RED)
+    if t.resting_state == my_color:
+        rs = 1.0
+    elif t.resting_state == opp_color:
+        rs = -1.0
+    else:
+        rs = 0.0
+    live_unset = 1.0 if t.state == ToggleState.UNSET else 0.0
+    return np.array([
+        agent_robot.x / 6.0, agent_robot.y / 6.0,
+        cos_t, sin_t,
+        agent_wl / WHEEL_MAX_SPEED, agent_wr / WHEEL_MAX_SPEED,
+        tog_fwd / 12.0, tog_side / 12.0,
+        opp_fwd / 12.0, opp_side / 12.0,
+        wall_align,
+        t.x / 6.0, t.y / 6.0,
+        opp.x / 6.0, opp.y / 6.0,
+        math.cos(opp.theta), math.sin(opp.theta),
+        rs, live_unset,
+    ], dtype=np.float32)
+
+
 def _back_sensor_overlaps(robot: Robot, t: Toggle) -> bool:
     """Same alignment-gated back-sensor / AABB test the game uses."""
     nx, ny = _toggle_outward_normal(t)
@@ -130,7 +207,7 @@ class ToggleDuelEnv:
             we actually flip it (resting_state transitions to our color).
     """
 
-    OBS_DIM = 14
+    OBS_DIM = 19
     ACTION_DIM = 9
     DT = 0.05
     DEFAULT_EPISODE_STEPS = 600
@@ -271,30 +348,8 @@ class ToggleDuelEnv:
     # ---------- helpers ----------
 
     def _observation(self) -> np.ndarray:
-        own = self.agent_robot
-        opp = self.opp_robot
-        t = self.toggle
-        my_color = (ToggleState.RED if self.agent_alliance == Alliance.RED
-                     else ToggleState.BLUE)
-        opp_color = (ToggleState.BLUE if my_color == ToggleState.RED
-                      else ToggleState.RED)
-        if t.resting_state == my_color:
-            rs_signed = 1.0
-        elif t.resting_state == opp_color:
-            rs_signed = -1.0
-        else:
-            rs_signed = 0.0
-        live_unset = 1.0 if t.state == ToggleState.UNSET else 0.0
-        obs = np.array([
-            own.x / 6.0, own.y / 6.0,
-            math.cos(own.theta), math.sin(own.theta),
-            self._wl / WHEEL_MAX_SPEED, self._wr / WHEEL_MAX_SPEED,
-            opp.x / 6.0, opp.y / 6.0,
-            math.cos(opp.theta), math.sin(opp.theta),
-            t.x / 6.0, t.y / 6.0,
-            rs_signed, live_unset,
-        ], dtype=np.float32)
-        return obs
+        return make_observation(self.world, self.agent_robot,
+                                  self.agent_alliance, self._wl, self._wr)
 
     def _resolve_robot_overlaps(self) -> None:
         r = ROBOT_COLL_R_FT

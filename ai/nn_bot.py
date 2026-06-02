@@ -27,7 +27,7 @@ from ai.scripted_bot import (
     WHEEL_ACCEL, WHEEL_BASE_FT, WHEEL_DECEL, WHEEL_MAX_SPEED, ROBOT_COLL_R_FT,
     _approach, _wrap_pi,
 )
-from envs.toggle_duel_env import DISCRETE_ACTIONS
+from envs.toggle_duel_env import DISCRETE_ACTIONS, make_observation
 
 
 class NNBot:
@@ -175,41 +175,11 @@ class NNBot:
         return 7 if rel > 0 else 8
 
     def _observation(self):
-        """Same 14-d layout the env produces — must stay in sync with
-        envs.toggle_duel_env.ToggleDuelEnv._observation."""
-        import numpy as np
-        own = self.robot
-        # Pick the first non-self robot as opponent reference
-        opp = next((r for r in self.world.robots if r.id != self.robot_id),
-                    None)
-        if opp is None:
-            opp_x = opp_y = opp_c = opp_s = 0.0
-        else:
-            opp_x, opp_y = opp.x, opp.y
-            opp_c = math.cos(opp.theta)
-            opp_s = math.sin(opp.theta)
-        # Toggle: use the first one in the world (duel mode has exactly one).
-        t = self.world.toggles[0]
-        my_color = (ToggleState.RED if self.alliance == Alliance.RED
-                     else ToggleState.BLUE)
-        opp_color = (ToggleState.BLUE if my_color == ToggleState.RED
-                      else ToggleState.RED)
-        if t.resting_state == my_color:
-            rs = 1.0
-        elif t.resting_state == opp_color:
-            rs = -1.0
-        else:
-            rs = 0.0
-        live_unset = 1.0 if t.state == ToggleState.UNSET else 0.0
-        return np.array([
-            own.x / 6.0, own.y / 6.0,
-            math.cos(own.theta), math.sin(own.theta),
-            self._wl / WHEEL_MAX_SPEED, self._wr / WHEEL_MAX_SPEED,
-            opp_x / 6.0, opp_y / 6.0,
-            opp_c, opp_s,
-            t.x / 6.0, t.y / 6.0,
-            rs, live_unset,
-        ], dtype="float32")
+        """Defer to the shared make_observation so we always see exactly
+        the layout the env produced during training."""
+        return make_observation(
+            self.world, self.robot, self.alliance, self._wl, self._wr,
+        )
 
     def _maybe_flip_toggle(self) -> None:
         """If the NN-driven robot's back sensor is on a toggle (with proper

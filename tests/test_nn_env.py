@@ -90,7 +90,8 @@ def test_nn_bot_drives_robot():
     app = App()
     app._enter_duel_mode()
     # Replace R0's bot with an NN bot powered by an UNTRAINED net
-    net = MLPPolicy(obs_dim=14, action_dim=9, hidden=16)
+    from envs import ToggleDuelEnv as _E
+    net = MLPPolicy(obs_dim=_E.OBS_DIM, action_dim=_E.ACTION_DIM, hidden=16)
     r0_idx = next(i for i, b in enumerate(app.bots) if b.robot_id == 0)
     app.bots[r0_idx] = NNBot(robot_id=0, world=app.world, policy=net,
                               collides_at=app._make_collides_for(0))
