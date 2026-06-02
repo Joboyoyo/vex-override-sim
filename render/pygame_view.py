@@ -200,6 +200,16 @@ class App:
         }
         # Backing bot instances for non-player controllers.
         self.bot_instances: dict[int, object] = {}
+        # Discover available NN policy checkpoints under ai/*.pt so the user
+        # can cycle between models (BC vs DAGGER vs PPO vs self-play vs mixed)
+        # with the M key and see how training improved the policy over time.
+        self.nn_model_paths: list = self._discover_nn_models()
+        self.nn_model_idx: int = 0
+        # Prefer toggle_duel_policy.pt as the starting model if present.
+        for i, p in enumerate(self.nn_model_paths):
+            if p.name == "toggle_duel_policy.pt":
+                self.nn_model_idx = i
+                break
         for rid, kind in self.controllers.items():
             self._rebuild_controller(rid, kind)
         # Keep self.bots in sync for any older code paths that still expect it.
@@ -1099,6 +1109,12 @@ class App:
             # Swap red duel bot ↔ neural-network policy (loads ai/toggle_duel_policy.pt)
             self._swap_red_bot_to_nn()
 
+        elif event.key == pygame.K_m:
+            # Cycle to the next NN policy checkpoint in ai/*.pt and reload
+            # any active NN bots so improvements between training stages
+            # (BC → DAGGER → PPO → self-play → mixed) can be compared live.
+            self._cycle_nn_model()
+
         elif event.key == pygame.K_b:
             # Toggle all bots on/off
             if self.bots:
@@ -1292,6 +1308,55 @@ class App:
 
     # -- Controller management -------------------------------------------------
 
+    def _discover_nn_models(self) -> list:
+        """Scan ai/*.pt for available policy checkpoints. Returns a list of
+        Path objects sorted alphabetically so the cycle order is stable."""
+        from pathlib import Path
+        ai_dir = Path(__file__).resolve().parent.parent / "ai"
+        if not ai_dir.is_dir():
+            return []
+        return sorted(ai_dir.glob("*.pt"))
+
+    def _current_nn_model_path(self):
+        """Return the Path of the currently-selected NN policy file, or None."""
+        if not self.nn_model_paths:
+            return None
+        idx = self.nn_model_idx % len(self.nn_model_paths)
+        return self.nn_model_paths[idx]
+
+    def _current_nn_model_name(self) -> str:
+        p = self._current_nn_model_path()
+        return p.stem if p is not None else "(none)"
+
+    def _cycle_nn_model(self) -> None:
+        """Advance to the next NN policy checkpoint and rebuild any NN bots
+        so they pick up the new weights immediately."""
+        if not self.nn_model_paths:
+            self.status = "No NN models found under ai/*.pt."
+            return
+        # Re-scan in case the user added a new .pt while running.
+        self.nn_model_paths = self._discover_nn_models()
+        cur_name = self._current_nn_model_name()
+        # Find current in fresh list (in case ordering shifted) then advance.
+        new_idx = 0
+        for i, p in enumerate(self.nn_model_paths):
+            if p.stem == cur_name:
+                new_idx = (i + 1) % len(self.nn_model_paths)
+                break
+        self.nn_model_idx = new_idx
+        # Rebuild any robots currently set to 'nn' so they load the new model.
+        nn_robots = [rid for rid, k in self.controllers.items() if k == 'nn']
+        for rid in nn_robots:
+            self._rebuild_controller(rid, 'nn')
+        self._sync_bots_list()
+        new_name = self._current_nn_model_name()
+        if nn_robots:
+            self.status = (f"NN model -> {new_name}  "
+                            f"(rebuilt R{','.join(str(r) for r in nn_robots)})")
+        else:
+            self.status = (f"NN model -> {new_name}  "
+                            f"(no NN bots active — set one via the controllers panel)")
+
     def _rebuild_controller(self, robot_id: int, kind: str) -> None:
         """Create / replace / clear the bot instance for `robot_id` based on
         the requested controller `kind` ('player'/'scripted'/'nn'/'none')."""
@@ -1306,14 +1371,12 @@ class App:
             self.bot_instances[robot_id] = b
         elif kind == 'nn':
             try:
-                from pathlib import Path
                 from ai.nn_policy import MLPPolicy
                 from ai.nn_bot import NNBot
-                model_path = (Path(__file__).resolve().parent.parent
-                              / "ai" / "toggle_duel_policy.pt")
-                if not model_path.exists():
-                    self.status = (f"NN model not found at {model_path.name}; "
-                                    f"using scripted instead.")
+                model_path = self._current_nn_model_path()
+                if model_path is None or not model_path.exists():
+                    self.status = ("No NN model checkpoints found in ai/*.pt; "
+                                    "using scripted instead.")
                     self.controllers[robot_id] = 'scripted'
                     self._rebuild_controller(robot_id, 'scripted')
                     return
@@ -1548,8 +1611,8 @@ class App:
 
         bd_h = 260
         tog_h = 180
-        # Per-robot row ~30 px tall plus header padding
-        ctrl_h = 40 + 30 * max(1, len(self.world.robots))
+        # Per-robot row ~30 px tall plus header padding plus footer (NN model)
+        ctrl_h = 40 + 30 * max(1, len(self.world.robots)) + 36
         help_h = max(100, side_h_total - bd_h - tog_h - ctrl_h - 36)
 
         bd_rect = pygame.Rect(self.layout.side_x, side_y, self.layout.side_w, bd_h)
@@ -1562,7 +1625,8 @@ class App:
         ctrl_rect = pygame.Rect(self.layout.side_x, tog_rect.bottom + 12,
                                   self.layout.side_w, ctrl_h)
         self._controller_hits = H.draw_controllers_panel(
-            self.screen, ctrl_rect, self.world, self.controllers)
+            self.screen, ctrl_rect, self.world, self.controllers,
+            nn_model_name=self._current_nn_model_name())
 
         help_rect = pygame.Rect(self.layout.side_x, ctrl_rect.bottom + 12,
                                 self.layout.side_w, help_h)

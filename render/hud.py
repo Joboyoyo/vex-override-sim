@@ -239,11 +239,16 @@ CONTROLLER_LABELS = {
 }
 
 
-def draw_controllers_panel(surface, rect, world, controllers: dict) -> list:
+def draw_controllers_panel(surface, rect, world, controllers: dict,
+                            nn_model_name: str = "") -> list:
     """Draw a 'who's driving who' panel. For each robot, show 4 small
     pill-buttons (PLAYER / SCRIPT / NN / OFF) — the current one is
     highlighted. Returns a list of (robot_id, kind, rect) tuples so
     the click handler in App can dispatch mouse clicks to controller changes.
+
+    If `nn_model_name` is given, also shows "NN model: <name>  (M to cycle)"
+    at the bottom of the panel so the user can see which policy checkpoint
+    is currently active.
     """
     inner = _draw_panel(surface, rect, title="Controllers")
     hit_zones = []
@@ -276,6 +281,16 @@ def draw_controllers_panel(surface, rect, world, controllers: dict) -> list:
             bx += button_w + gap
 
         y += line_h
+
+    # Footer: current NN model name, so the user can see which checkpoint
+    # is being used by any robot whose controller is 'nn'. M cycles.
+    if nn_model_name:
+        _draw_text(surface, "NN model:", inner.left, y + 2,
+                    color=C.TEXT_SECONDARY, size=11, bold=False)
+        _draw_text(surface, nn_model_name, inner.left + 60, y + 2,
+                    color=C.TEXT_HIGHLIGHT, size=11, bold=True)
+        _draw_text(surface, "(M to cycle)", inner.left, y + 18,
+                    color=C.TEXT_SECONDARY, size=10, bold=False)
     return hit_zones
 
 
@@ -295,6 +310,7 @@ HELP_LINES = [
     ("B",              "toggle AI bots on/off"),
     ("F",              "AI-vs-AI toggle duel mode (zoomed quadrant)"),
     ("N",              "in duel: swap red bot ↔ neural-network policy"),
+    ("M",              "cycle NN model (ai/*.pt: BC → DAGGER → PPO → …)"),
     ("Click goal",     "auto-place: pin → cup → pin → ... (SC2)"),
     ("Right-click",    "remove TOP-of-stack object"),
     ("1-4 / 5-6",      "pin type / cup orientation"),
