@@ -615,7 +615,10 @@ class ScriptedBot:
     def _apply_tank_kinematics(self, dt: float) -> None:
         """Integrate v_left/v_right into chassis pose + clamp to field/goal
         collisions. Shared between forward driving (`_drive_step`) and the
-        back-into-toggle reverse maneuver."""
+        back-into-toggle reverse maneuver.
+
+        If both axes get blocked (cornered against a goal), trigger the
+        unstuck reverse routine — same trick as in `_drive_step`."""
         r = self.robot
         v_lin = 0.5 * (self._v_left + self._v_right)
         v_ang = (self._v_right - self._v_left) / WHEEL_BASE_FT
@@ -623,12 +626,25 @@ class ScriptedBot:
         move_x = math.cos(r.theta) * v_lin * dt
         move_y = math.sin(r.theta) * v_lin * dt
         bound = 6.0 - ROBOT_COLL_R_FT
+        blocked_x = False
+        blocked_y = False
         try_x = max(-bound, min(bound, r.x + move_x))
         if not self.collides_at(try_x, r.y):
             r.x = try_x
+        elif abs(move_x) > 1e-4:
+            blocked_x = True
         try_y = max(-bound, min(bound, r.y + move_y))
         if not self.collides_at(r.x, try_y):
             r.y = try_y
+        elif abs(move_y) > 1e-4:
+            blocked_y = True
+        # Cornered? Fire the unstuck routine.
+        if blocked_x and blocked_y and self._unstuck_dt <= 0.0:
+            self._unstuck_dt = 0.7
+            self._unstuck_dir = (-self._unstuck_dir
+                                   if self._unstuck_dir else 1.0)
+            self._v_left = 0.0
+            self._v_right = 0.0
 
     # -- Back-into-toggle maneuver --------------------------------------------
 
@@ -910,3 +926,14 @@ class ScriptedBot:
         if blocked_x and blocked_y:
             self._v_left = 0.0
             self._v_right = 0.0
+            # CORNERED on a goal — fire the unstuck routine immediately.
+            # The 0.4s-of-trying-to-move stuck detector won't catch this
+            # because we just zeroed the wheels (so "expected motion" is 0,
+            # and the detector resets). Without this hop the bot can sit
+            # against a goal forever, waiting to be rescued.
+            if self._unstuck_dt <= 0.0:
+                self._unstuck_dt = 0.7
+                self._unstuck_dir = (-self._unstuck_dir
+                                       if self._unstuck_dir else 1.0)
+                self.status_msg = (f"R{self.robot_id} cornered on a goal — "
+                                    f"backing off")
