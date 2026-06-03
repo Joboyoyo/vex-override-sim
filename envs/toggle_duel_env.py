@@ -118,8 +118,18 @@ def make_observation(world: World, agent_robot: Robot,
     pool = non_ours if non_ours else world.toggles
     t = min(pool, key=lambda tt: math.hypot(tt.x - agent_robot.x,
                                               tt.y - agent_robot.y))
-    opp = next((r for r in world.robots if r.id != agent_robot.id),
-                agent_robot)   # if no opp, mirror own (degenerate)
+    # Pick the CLOSEST ENEMY (different alliance) as "the opponent" in the
+    # obs. In a 1v1 duel this is the only other robot — same as before.
+    # In a 2v2 duel this is the nearest blue (or red), so the policy
+    # doesn't waste features on its own partner. Falls back to any
+    # non-self robot if no enemy exists (degenerate), or to self.
+    enemies = [r for r in world.robots if r.alliance != agent_alliance]
+    if enemies:
+        opp = min(enemies, key=lambda r: math.hypot(r.x - agent_robot.x,
+                                                       r.y - agent_robot.y))
+    else:
+        opp = next((r for r in world.robots if r.id != agent_robot.id),
+                    agent_robot)
     cos_t = math.cos(agent_robot.theta)
     sin_t = math.sin(agent_robot.theta)
     # Toggle in body frame

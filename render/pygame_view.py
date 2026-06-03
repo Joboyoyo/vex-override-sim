@@ -117,6 +117,32 @@ def make_toggle_duel_world() -> World:
     return w
 
 
+def make_toggle_2v2_world() -> World:
+    """2v2 duel — real field, ALL 4 robots, but only the right-wall (Q1)
+    and left-wall (Q3) toggles, so each alliance has a 'home' toggle to
+    defend and an enemy toggle to flip. Forces both alliance pairs to
+    actually fight as teams rather than splitting up across 4 objectives.
+
+    R0 + R1 = red alliance, R2 + R3 = blue alliance. Spawn positions
+    are mirror-symmetric so neither side starts with positional advantage."""
+    w = make_empty_world()
+    w.phase = Phase.DRIVER
+    w.toggles = [t for t in w.toggles if t.quadrant in (1, 3)]
+    # Keep all four robots; spawn mirror-symmetric near mid-field.
+    # Red on the right half facing the Q1 enemy toggle, blue on the left
+    # half facing the Q3 enemy toggle.
+    for r in w.robots:
+        if r.id == 0:   # red lead
+            r.x, r.y, r.theta = 2.0,  2.0, 0.0
+        elif r.id == 1: # red support
+            r.x, r.y, r.theta = 2.0, -2.0, 0.0
+        elif r.id == 2: # blue lead
+            r.x, r.y, r.theta = -2.0,  2.0, math.pi
+        elif r.id == 3: # blue support
+            r.x, r.y, r.theta = -2.0, -2.0, math.pi
+    return w
+
+
 # -- App ----------------------------------------------------------------------
 
 
@@ -1108,6 +1134,14 @@ class App:
             else:
                 self._enter_duel_mode()
 
+        elif event.key == pygame.K_g:
+            # Toggle 2v2 alliance-duel mode. If currently in any duel mode,
+            # exit first; otherwise enter 2v2.
+            if self.duel_mode:
+                self._exit_duel_mode()
+            else:
+                self._enter_2v2_mode()
+
         elif event.key == pygame.K_n:
             # Swap red duel bot ↔ neural-network policy (loads ai/toggle_duel_policy.pt)
             self._swap_red_bot_to_nn()
@@ -1294,6 +1328,25 @@ class App:
         self._sync_bots_list()
         self.status = ("TOGGLE DUEL — pick controllers in the side panel. "
                         "F again to leave duel mode.")
+
+    def _enter_2v2_mode(self) -> None:
+        """Switch to the 2v2 alliance-duel: real field, Q1 + Q3 toggles
+        only, all 4 robots present. Defaults to red NN pair vs blue scripted
+        pair so you can immediately see how the trained policy plays as a
+        TEAM rather than solo. Any controller can be changed from the panel.
+        Uses the duel_mode flag so the rest of the renderer treats it as
+        a duel layout (no auto-score, no goals)."""
+        self.duel_mode = True
+        self.world = make_toggle_2v2_world()
+        self.auto_red = self.auto_blue = None
+        self._recompute_layout()
+        self.controllers = {0: 'nn', 1: 'nn', 2: 'scripted', 3: 'scripted'}
+        self.bot_instances = {}
+        for rid, kind in self.controllers.items():
+            self._rebuild_controller(rid, kind)
+        self._sync_bots_list()
+        self.status = ("2v2 ALLIANCE DUEL — red NN pair vs blue scripted pair. "
+                        "G again to leave, K to cycle NN model.")
 
     def _exit_duel_mode(self) -> None:
         """Return to normal play: standard world, player drives R0, three
